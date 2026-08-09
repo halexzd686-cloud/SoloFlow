@@ -12,7 +12,6 @@ from soloflow.models.skill import (
     CoSTAR,
     SkillConfig,
     SkillFile,
-    SkillIteration,
     SkillMeta,
 )
 
@@ -80,7 +79,7 @@ def _build_frontmatter(skill: SkillFile) -> str:
     """将 SkillFile 序列化为 YAML frontmatter 字符串。
 
     保证无损 round-trip（BUG-SKILL-001 修复）：
-    - 写回 examples / tests / iteration.changelog（此前丢失）
+    - 写回 examples / tests
     - 合并 extra_frontmatter 中的未知扩展字段（向前兼容）
     - 已知字段优先，未被占用的未知字段原样保留
     """
@@ -109,13 +108,6 @@ def _build_frontmatter(skill: SkillFile) -> str:
         # 示例与测试（BUG-SKILL-001: 此前未写回）
         "examples": [ex.model_dump() for ex in skill.examples] or None,
         "tests": [t.model_dump() for t in skill.tests] or None,
-        # 依赖
-        "depends_on": skill.dependencies or None,
-        # 迭代元数据（仅当有迭代记录时写入）
-        "iteration_version": skill.iteration.version or None,
-        "iteration_score": skill.iteration.score,
-        "iteration_evaluated_at": skill.iteration.evaluated_at,
-        "iteration_changelog": skill.iteration.changelog or None,
     }
     # 移除 None / 空值
     data = {k: v for k, v in data.items() if v is not None and v != [] and v != ""}
@@ -189,13 +181,6 @@ def load_skill(path: str | Path) -> SkillFile:
         examples=frontmatter.get("examples", []),
         tests=frontmatter.get("tests", []),
         body=body,
-        dependencies=frontmatter.get("depends_on", []),
-        iteration=SkillIteration(
-            version=int(frontmatter.get("iteration_version", 0)),
-            score=frontmatter.get("iteration_score"),
-            evaluated_at=frontmatter.get("iteration_evaluated_at"),
-            changelog=frontmatter.get("iteration_changelog", []),
-        ),
         # 保留无法映射到已知字段的扩展键，避免 load → save 丢失
         extra_frontmatter={
             k: v for k, v in frontmatter.items() if k not in _KNOWN_FRONTMATTER_KEYS
@@ -311,7 +296,7 @@ def validate_skill(skill: SkillFile, strict: bool = False) -> list[str]:
 
     Args:
         skill: SkillFile 对象。
-        strict: 是否启用严格模式（要求 CoSTAR 必填字段 + 检查依赖版本）。
+        strict: 是否启用严格模式（要求 CoSTAR 必填字段）。
 
     Returns:
         问题列表，空列表表示通过。
@@ -334,52 +319,5 @@ def validate_skill(skill: SkillFile, strict: bool = False) -> list[str]:
     # body 不能为空
     if not skill.body.strip():
         issues.append("Markdown body 为空（至少需要包含 Instructions 部分）")
-
-    # 依赖版本检查
-    if skill.dependencies:
-        dep_issues = validate_dependencies(skill.dependencies)
-        if strict:
-            issues.extend(dep_issues)
-        elif dep_issues:
-            issues.append(f"依赖版本问题: {len(dep_issues)} 项（用 --strict 查看详情）")
-
-    return issues
-
-
-def validate_dependencies(dependencies: list[str]) -> list[str]:
-    """校验 Skill 的依赖是否满足版本约束。
-
-    对每个依赖项查找已安装的 Skill，检查版本兼容性。
-
-    Args:
-        dependencies: 依赖规格字符串列表（如 ["code-reviewer@>=1.0.0"]）。
-
-    Returns:
-        问题列表，空列表表示全部满足。
-    """
-    from soloflow.models.skill import check_version_compatible, parse_dependency_spec
-
-    issues = []
-
-    for spec in dependencies:
-        name, constraint, target_version = parse_dependency_spec(spec)
-
-        # 查找已安装的 Skill
-        try:
-            dep_path = find_skill(name)
-            dep_skill = load_skill(dep_path)
-        except (FileNotFoundError, Exception):
-            issues.append(f"依赖 '{name}' 未找到（{spec}）")
-            continue
-
-        # 检查版本兼容性
-        if not check_version_compatible(dep_skill.meta.version, constraint, target_version):
-            constraint_str = (
-                f"{constraint}{target_version}" if constraint and target_version else "any"
-            )
-            issues.append(
-                f"依赖 '{name}' 版本不兼容: "
-                f"需要 {constraint_str}，实际 {dep_skill.meta.version} ({spec})"
-            )
 
     return issues
