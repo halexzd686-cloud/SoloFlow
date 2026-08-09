@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 1.0.0rc2 - 2026-08-09
+
 ### Fixed
 
 - MCP Server 兼容仍使用 `initialize`、`notifications/initialized` 和 `ping` 的客户端生命周期，同时保留新版 `server/discover` 支持。
@@ -18,6 +20,7 @@
 - 远程 `skills-registry` 已完成损坏缓存恢复、update、search、严格版本校验和隔离 install。
 - Heartbeat daemon 已完成真实启动、重复启动保护、中断恢复、状态报告、停止及 PID 清理。
 - DeepSeek V4 Flash 已完成真实 Skill、Agent、Flow 调用；Flow 状态、正式输出映射与 token 累计均通过断言。
+- 远程 Registry 已完成 `code-reviewer` 打包、PR 创建、合并和重新安装闭环。
 - 本地回归基线更新为 240 项测试通过，Ruff check 与 format check 通过。
 
 ## 1.0.0rc1 - 2026-08-09

@@ -9,7 +9,7 @@
 
 SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
 
-当前版本为 `1.0.0rc1`。本地 240 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry 安装及 Heartbeat daemon 生命周期均已通过；其他 LLM 供应商、Registry publish/PR 和 Heartbeat 长时间稳定性仍待验证，详见[项目状态](STATUS.md)。
+当前版本为 `1.0.0rc2`。本地 240 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install 及 Heartbeat daemon 生命周期均已通过；其他 LLM 供应商和 Heartbeat 长时间稳定性仍待验证，详见[项目状态](STATUS.md)。
 
 ## 它解决什么问题
 
@@ -107,7 +107,7 @@ SoloFlow 是 Prompt 与 LLM 工作流编排工具，不是完整的自主 Agent 
 - Agent 没有自主规划循环、长期记忆和后台分布式执行能力。
 - Flow 步骤主要传递字符串输出，暂不支持条件节点、人工审批和 fallback model。
 - Registry 暂无签名、checksum 和 commit SHA lockfile。
-- Heartbeat 长时间任务触发和 Registry publish/PR 在正式 `v1.0.0` 前仍需真实环境验证。
+- Heartbeat 长时间任务触发在正式 `v1.0.0` 前仍需真实环境验证。
 
 ## MCP 接入
 
@@ -157,7 +157,7 @@ uv build
 - [ ] OpenAI、Anthropic 等其他 LLM 供应商端到端验证
 - [x] Claude Code 真实 MCP 客户端连接与工具调用验证
 - [x] 远程社区 Registry update、search、版本校验与 install
-- [ ] 远程社区 Registry publish/PR 闭环
+- [x] 远程社区 Registry publish/PR 闭环
 - [x] Heartbeat daemon 启停、探活、中断恢复与 PID 清理
 - [ ] Heartbeat 长时间任务触发、PID 复用与多 Agent 并发验证
 - [ ] `v1.0.0` 与 PyPI 发布
