@@ -4,9 +4,24 @@
 
 ## Unreleased
 
+## 1.0.0 - 2026-08-09
+
+### Added
+
+- 文件驱动的 Skill、Agent 与 Flow 编排，支持 DAG 并发、状态持久化、失败传播和恢复。
+- TUI 仪表盘、MCP stdio Server、Heartbeat daemon 与远程 Skill Registry 工作流。
+- wheel 内置 4 个 Skill、2 个 Agent 和 8 个 Flow，并支持项目及用户级资产覆盖。
+- GitHub Release、SHA256 校验文件与 PyPI OIDC Trusted Publishing 自动发布链路。
+
 ### Changed
 
 - v1.0 明确以 DeepSeek 为官方验证和推荐供应商；OpenAI、Anthropic 保留兼容入口并标记为实验性支持，真实端到端验证移入 v1.1 Roadmap。
+
+### Verification
+
+- 本地 248 项测试、Ruff 检查、Windows/Linux × Python 3.12/3.13 CI 和 clean-wheel smoke 均通过。
+- DeepSeek Skill、Agent、Flow、错误处理、双 Agent Heartbeat、500 周期故障注入与 67 分钟真实 soak 均通过。
+- Claude Code MCP 实连、远程 Registry publish/PR/install，以及 PyPI RC5 发布、官方索引安装和数字发布证明均通过。
 
 ## 1.0.0rc5 - 2026-08-09
 
