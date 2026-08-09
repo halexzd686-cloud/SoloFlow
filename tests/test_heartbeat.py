@@ -309,3 +309,66 @@ def test_list_heartbeats_reports_live_daemon(monkeypatch, tmp_path):
             "last_run": "—",
         }
     ]
+
+
+def test_heartbeat_500_cycle_fault_injection(monkeypatch, tmp_path):
+    """500 周期内混合超时、连接、限流和空响应后仍持续运行并准确记账。"""
+    import asyncio
+
+    from soloflow.core import heartbeat as hb
+    from soloflow.models.agent import AgentDefinition, AgentHeartbeat, AgentSoul
+
+    class RateLimitError(Exception):
+        pass
+
+    counters = {"attempts": 0}
+    total_attempts = 500
+
+    def fake_run_agent(agent, trigger, count, dry_run):
+        counters["attempts"] += 1
+        attempt = counters["attempts"]
+        if attempt % 40 == 0:
+            return []
+        if attempt % 25 == 0:
+            raise TimeoutError("injected timeout")
+        if attempt % 33 == 0:
+            raise ConnectionError("injected connection failure")
+        if attempt % 47 == 0:
+            raise RateLimitError("injected rate limit")
+        return [f"SOAK_OK_{attempt}"]
+
+    async def fake_sleep(seconds):
+        if counters["attempts"] >= total_attempts:
+            raise asyncio.CancelledError
+
+    agent = AgentDefinition(
+        name="accelerated-soak",
+        description="500-cycle fault injection",
+        skills=["hello-world"],
+        soul=AgentSoul(personality="test"),
+        heartbeat=AgentHeartbeat(enabled=True, interval="0s", trigger_prompt="probe"),
+    )
+    monkeypatch.setattr(hb, "HEARTBEAT_DIR", tmp_path / "heartbeats")
+    monkeypatch.setattr(hb, "run_agent", fake_run_agent)
+    monkeypatch.setattr(hb.asyncio, "sleep", fake_sleep)
+
+    asyncio.run(hb._run_heartbeat_loop(agent, daemon=True))
+
+    expected_failures = {
+        attempt
+        for attempt in range(1, total_attempts + 1)
+        if attempt % 40 == 0 or attempt % 25 == 0 or attempt % 33 == 0 or attempt % 47 == 0
+    }
+    state = hb._load_heartbeat_state(agent.name)
+    assert state is not None
+    assert state["status"] == "stopped"
+    assert state["attempt_count"] == total_attempts
+    assert state["failure_count"] == len(expected_failures)
+    assert state["run_count"] == total_attempts - len(expected_failures)
+    assert state["consecutive_failures"] == 1  # 第 500 次为注入超时
+    assert state["last_error"].startswith("TimeoutError:")
+    assert state["last_result"] == "SOAK_OK_499"
+    assert hb._read_pid(agent.name) is None
+
+    log = (hb.HEARTBEAT_DIR / f"{agent.name}.log").read_text(encoding="utf-8")
+    assert log.count("心跳执行失败") == len(expected_failures)

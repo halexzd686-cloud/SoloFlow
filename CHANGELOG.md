@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+### Added
+
+- Heartbeat 状态新增尝试数、失败数、连续失败数、最后尝试和最后错误，空响应按失败记录。
+
+### Verification
+
+- Heartbeat 500 周期故障注入完成 445 次成功和 55 次超时、连接、限流或空响应失败，状态与清理断言通过。
+
 ## 1.0.0rc3 - 2026-08-09
 
 ### Verification

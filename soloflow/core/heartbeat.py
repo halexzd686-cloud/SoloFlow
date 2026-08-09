@@ -108,7 +108,13 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
 
     state = _load_heartbeat_state(name) or {}
     run_count = state.get("run_count", 0)
+    attempt_count = state.get("attempt_count", run_count)
+    failure_count = state.get("failure_count", 0)
+    consecutive_failures = state.get("consecutive_failures", 0)
     last_run = state.get("last_run")
+    last_attempt = state.get("last_attempt")
+    last_result = state.get("last_result", "")
+    last_error = state.get("last_error")
 
     def _log(msg: str) -> None:
         """根据模式输出到 console 或日志文件。"""
@@ -137,14 +143,21 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
             await asyncio.sleep(interval_sec)
 
             now = datetime.now(UTC).isoformat()
+            attempt_count += 1
+            last_attempt = now
             _log(f"[HB] [{name}] 心跳触发")
 
             # 在线程池中执行阻塞的 run_agent，避免阻塞事件循环
             trigger = agent.heartbeat.trigger_prompt
             results = await loop.run_in_executor(None, run_agent, agent, trigger, 1, False)
+            if not results or not results[0].strip():
+                raise RuntimeError("Agent returned no output")
 
             run_count += 1
             last_run = now
+            last_result = results[0][:200]
+            last_error = None
+            consecutive_failures = 0
 
             # 保存状态
             _save_heartbeat_state(
@@ -153,8 +166,13 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
                     "agent_name": name,
                     "interval": agent.heartbeat.interval,
                     "run_count": run_count,
+                    "attempt_count": attempt_count,
+                    "failure_count": failure_count,
+                    "consecutive_failures": consecutive_failures,
                     "last_run": last_run,
-                    "last_result": results[0][:200] if results else "",
+                    "last_attempt": last_attempt,
+                    "last_result": last_result,
+                    "last_error": last_error,
                     "status": "running",
                 },
             )
@@ -171,7 +189,13 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
                     "agent_name": name,
                     "interval": agent.heartbeat.interval,
                     "run_count": run_count,
+                    "attempt_count": attempt_count,
+                    "failure_count": failure_count,
+                    "consecutive_failures": consecutive_failures,
                     "last_run": last_run,
+                    "last_attempt": last_attempt,
+                    "last_result": last_result,
+                    "last_error": last_error,
                     "stopped_at": datetime.now(UTC).isoformat(),
                     "status": "stopped",
                 },
@@ -180,7 +204,26 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
                 _remove_pid(name)
             break
         except Exception as e:
-            _log(f"心跳执行失败 [{name}]: {e}")
+            failure_count += 1
+            consecutive_failures += 1
+            last_error = f"{type(e).__name__}: {e}"[:500]
+            _save_heartbeat_state(
+                name,
+                {
+                    "agent_name": name,
+                    "interval": agent.heartbeat.interval,
+                    "run_count": run_count,
+                    "attempt_count": attempt_count,
+                    "failure_count": failure_count,
+                    "consecutive_failures": consecutive_failures,
+                    "last_run": last_run,
+                    "last_attempt": last_attempt,
+                    "last_result": last_result,
+                    "last_error": last_error,
+                    "status": "running",
+                },
+            )
+            _log(f"心跳执行失败 [{name}]: {last_error}")
             # 继续循环，等下一轮
 
 

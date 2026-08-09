@@ -5,7 +5,7 @@
 ## Verified locally
 
 - Windows 11, Python 3.12.13。
-- `243 passed`。
+- `244 passed`。
 - Ruff check 通过，63 个 Python 文件格式检查通过。
 - wheel 和 sdist 可构建。
 - wheel 在全新虚拟环境安装成功。
@@ -17,6 +17,7 @@
 - Heartbeat daemon 已完成真实启动、探活、重复启动保护、中断恢复、停止和 PID 清理。
 - 两个 Heartbeat Agent 已并发完成各 3 次真实 DeepSeek 调用，结果持久化和停止清理均通过。
 - Heartbeat 使用 PID 与进程命令行联合校验，PID 复用探针和真实 daemon 身份链路均已通过。
+- Heartbeat 500 周期加速测试完成 445 次成功和 55 次注入失败，daemon 持续运行且指标一致。
 - DeepSeek V4 Flash 已完成真实 Skill、Agent、Flow 调用，输出、状态和 token usage 均已验证。
 - GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
