@@ -138,9 +138,9 @@ class SkillPanel(VerticalScroll):
 def _load_skills() -> list[dict]:
     """加载 Skill 列表，返回富数据供卡片渲染和详情弹窗。"""
     try:
-        from soloflow.core.skill_loader import list_skills
+        from soloflow.core.skill_loader import list_available_skills
 
-        skills = list_skills("skills")
+        skills = list_available_skills()
         enriched = []
         for s in skills:
             enriched.append(

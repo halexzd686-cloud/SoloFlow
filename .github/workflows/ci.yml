@@ -50,5 +50,11 @@ jobs:
         run: |
           uv venv /tmp/smoke-venv
           uv pip install --python /tmp/smoke-venv dist/*.whl
+          mkdir -p /tmp/soloflow-smoke-cwd
+          cd /tmp/soloflow-smoke-cwd
           /tmp/smoke-venv/bin/sf --help > /dev/null
           /tmp/smoke-venv/bin/sf version
+          /tmp/smoke-venv/bin/sf skill show content-writer --json > /dev/null
+          /tmp/smoke-venv/bin/sf agent show content-editor --json > /dev/null
+          /tmp/smoke-venv/bin/sf flow show blog-pipeline > /dev/null
+          /tmp/smoke-venv/bin/sf flow run blog-pipeline --dry-run -i topic=test > /dev/null

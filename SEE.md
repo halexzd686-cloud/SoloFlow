@@ -1,6 +1,6 @@
 # SoloFlow — 项目现状总览
 
-> **版本**: v0.9.1 | **日期**: 2026-08-08 | **测试**: 230/230 通过（本地） | **Ruff**: 0 错误 | **CI**: 配置存在，尚未在远程 CI 实际验证 | **wheel**: 本地构建成功，未在干净机器验证
+> **版本**: v0.9.1 | **日期**: 2026-08-09 | **测试**: 233/233 通过（本地） | **Ruff**: 0 错误 | **CI**: 配置存在，尚未在远程 CI 实际验证 | **wheel**: 本地干净虚拟环境安装及源码目录外 smoke 通过
 
 ---
 
@@ -104,7 +104,7 @@ Flow（工作流）    → 编排多个 Skill/Agent 协同完成复杂任务（D
 
 | 指标 | 数值 |
 |------|------|
-| 测试 | 230/230 通过（本地） |
+| 测试 | 233/233 通过（本地） |
 | Ruff | 0 错误 |
 | CI | Windows+Linux × 3.12/3.13 矩阵 + wheel smoke |
 | 可用命令 | skill(6) / agent(4) / flow(6) / registry(6) + dashboard / mcp / version |
@@ -217,7 +217,7 @@ sf skill iter content-writer -n 30
 ```bash
 cd E:/outdoor/soloflow
 uv sync --group dev
-uv run pytest tests/ -v     # 138 tests, 全部通过
+uv run pytest tests/ -v     # 233 tests, 全部通过
 uv run sf skill list        # 查看 3 个 Skill
 uv run sf flow list         # 查看 8 个 Flow
 uv run sf dashboard         # TUI 仪表盘

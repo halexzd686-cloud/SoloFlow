@@ -77,9 +77,9 @@ class HeaderBar(Horizontal):
     @staticmethod
     def _count_skills() -> int:
         try:
-            from soloflow.core.skill_loader import list_skills
+            from soloflow.core.skill_loader import list_available_skills
 
-            return len(list_skills("skills"))
+            return len(list_available_skills())
         except Exception:
             return 0
 
@@ -87,19 +87,17 @@ class HeaderBar(Horizontal):
     def _count_agents() -> int:
         # P2-001: 与 CLI 共用统一的搜索目录
         try:
-            from soloflow.cli.agent import _agent_search_dirs
+            from soloflow.cli.agent import _list_agents
 
-            return sum(
-                len(list(d.glob("*.agent.y*ml"))) for d in _agent_search_dirs() if d.is_dir()
-            )
+            return len(_list_agents())
         except Exception:
             return 0
 
     @staticmethod
     def _count_flows() -> int:
         try:
-            from pathlib import Path
+            from soloflow.core.assets import list_flow_paths
 
-            return len(list(Path("flows").glob("*.flow.y*ml")))
+            return len(list_flow_paths())
         except Exception:
             return 0

@@ -126,7 +126,7 @@ SoloFlow 当前是 **AI Skill/Prompt 编排工具**，不是完整的自主 Agen
 
 ```bash
 uv sync --extra dev
-uv run pytest -q          # 230 项测试（本地）
+uv run pytest -q          # 233 项测试（本地）
 uv run ruff check soloflow tests
 uv run ruff format soloflow tests
 uv build                  # 构建 wheel/sdist

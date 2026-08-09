@@ -9,10 +9,10 @@ from textual.containers import VerticalScroll
 from textual.message import Message
 from textual.widgets import Static
 
+from soloflow.core.assets import list_flow_paths
 from soloflow.core.flow_engine import load_flow
 from soloflow.tui.theme import C
 
-FLOWS_DIR = Path("flows")
 RUNS_DIR = Path(".soloflow/runs")
 
 
@@ -34,14 +34,15 @@ def _load_recent_runs() -> dict[str, dict]:
 
 
 def _load_flows() -> list[dict]:
-    """从 flows/ 目录加载真实 Flow 定义并合并运行状态。"""
-    if not FLOWS_DIR.is_dir():
+    """加载项目或包内 Flow 定义并合并运行状态。"""
+    flow_paths = list_flow_paths()
+    if not flow_paths:
         return []
 
     recent_runs = _load_recent_runs()
     results = []
 
-    for flow_file in sorted(FLOWS_DIR.glob("*.flow.y*ml")):
+    for flow_file in flow_paths:
         try:
             flow = load_flow(flow_file)
         except Exception:

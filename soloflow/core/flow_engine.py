@@ -1028,9 +1028,12 @@ def resume_flow(
     saved_inputs = saved.get("inputs", {})
     prev_attempt = int(saved.get("attempt", 1))
 
-    flow_path = Path("flows") / f"{flow_name}.flow.yml"
-    if not flow_path.exists():
-        console.print(f"[red]Flow 文件不存在: {flow_path}[/red]")
+    from soloflow.core.assets import find_flow_path
+
+    try:
+        flow_path = find_flow_path(flow_name)
+    except FileNotFoundError:
+        console.print(f"[red]Flow 文件不存在: {flow_name}[/red]")
         return None
 
     flow = load_flow(flow_path)

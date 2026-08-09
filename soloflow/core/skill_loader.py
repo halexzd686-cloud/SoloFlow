@@ -263,6 +263,35 @@ def list_skills(skills_dir: str | Path) -> list[dict]:
     return results
 
 
+def list_available_skills(
+    project_dir: str | Path = "skills",
+    *,
+    include_project: bool = True,
+    include_global: bool = True,
+    include_bundled: bool = True,
+) -> list[dict]:
+    """List discoverable Skills with project/user overrides taking precedence."""
+    from soloflow.core.assets import bundled_asset_dir
+
+    sources: list[tuple[str, Path]] = []
+    if include_project:
+        sources.append(("project", Path(project_dir)))
+    if include_global:
+        sources.append(("global", Path.home() / ".soloflow" / "skills"))
+    if include_bundled:
+        sources.append(("bundled", bundled_asset_dir("skills")))
+
+    results: list[dict] = []
+    seen: set[str] = set()
+    for source, directory in sources:
+        for skill in list_skills(directory):
+            if skill["name"] in seen:
+                continue
+            seen.add(skill["name"])
+            results.append({**skill, "source": source})
+    return results
+
+
 def find_skill(name_or_path: str, project_dir: str | Path | None = None) -> Path:
     """按名称或路径查找 Skill 文件。
 
@@ -270,6 +299,7 @@ def find_skill(name_or_path: str, project_dir: str | Path | None = None) -> Path
     1. 直接路径（文件或目录）
     2. 项目 skills/ 目录下递归搜索（按目录名匹配）
     3. 全局 ~/.soloflow/skills/ 目录下递归搜索
+    4. wheel 内置 Skill 目录下递归搜索
 
     Args:
         name_or_path: Skill 名称或路径。
@@ -305,6 +335,15 @@ def find_skill(name_or_path: str, project_dir: str | Path | None = None) -> Path
     global_skills = Path.home() / ".soloflow" / "skills"
     if global_skills.is_dir():
         for skill_md in sorted(global_skills.rglob("SKILL.md")):
+            if skill_md.parent.name == name_or_path:
+                return skill_md
+
+    # 4. wheel 内置 Skill（项目和用户资产均可覆盖）
+    from soloflow.core.assets import bundled_asset_dir
+
+    bundled_skills = bundled_asset_dir("skills")
+    if bundled_skills.is_dir():
+        for skill_md in sorted(bundled_skills.rglob("SKILL.md")):
             if skill_md.parent.name == name_or_path:
                 return skill_md
 

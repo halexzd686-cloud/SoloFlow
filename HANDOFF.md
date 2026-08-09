@@ -2,9 +2,9 @@
 
 > 目标读者：DeepSeek v4 Flash 或其他代码 Agent
 > 文档用途：最后一轮本地质量收尾与发布前验收
-> 最后复核：2026-08-08
+> 最后复核：2026-08-09
 > 当前版本：`0.9.1`
-> 当前本地测试：`230 passed`
+> 当前本地测试：`233 passed`
 > 当前静态检查：Ruff check 与 format check 均通过
 > 当前结论：本地验证充分的 v1.0 RC 候选；正式 v1.0 仍需真实外部环境验证
 
@@ -61,7 +61,7 @@ Flow：输入 → DAG Step A → Step B/C → Step D → 输出与运行状态
 在 Windows Python 3.12.13 环境执行：
 
 ```text
-pytest -q                         → 230 passed in 15.60s
+pytest -q                         → 233 passed（本地）
 pytest -q tests/test_tui.py -s    → 7 passed in 3.91s
 ruff check soloflow tests         → All checks passed!
 ruff format --check ...           → 46 files already formatted
@@ -167,11 +167,11 @@ if isinstance(max_parallel, bool) or not isinstance(max_parallel, int) or max_pa
 
 确认并保持以下状态：
 
-- `README.md` 测试基线为 `230`。
-- `SEE.md` 测试基线为 `230/230 通过（本地）`。
-- `HANDOFF.md` 测试基线为 `230 passed`。
+- `README.md` 测试基线为 `233`。
+- `SEE.md` 测试基线为 `233/233 通过（本地）`。
+- `HANDOFF.md` 测试基线为 `233 passed`。
 - CI 写成“配置存在，尚未在远程 CI 实际验证”。
-- wheel 写成“本地构建成功，未在干净机器验证”。
+- wheel 写成“本地干净虚拟环境安装及源码目录外 smoke 通过；远程 CI 尚未验证”。
 - 不再出现旧测试数量、虚假的 CI 通过声明或重复的“问题未修复”章节。
 
 检查命令：
@@ -193,7 +193,7 @@ rg -n '196|222|224|CI.*✅|GitHub Actions.*通过' README.md SEE.md HANDOFF.md
 3. 真实远程 Registry 的 pull、publish、PR、update、install 闭环。
 4. Claude Code、Cursor、Codex 等真实 MCP 客户端连接 `sf mcp`。
 5. GitHub Actions Windows/Linux 矩阵和 wheel smoke。
-6. 干净 Python 环境安装 wheel 后运行 CLI smoke。
+6. GitHub Actions 中的 Ubuntu 干净环境 wheel smoke（本地 Windows 干净环境已通过）。
 7. Heartbeat daemon 长时间运行、重启恢复、PID 复用和多 Agent 并发。
 8. auto_iter 多轮真实效果、评分退化保护和失败恢复。
 
@@ -204,7 +204,7 @@ rg -n '196|222|224|CI.*✅|GitHub Actions.*通过' README.md SEE.md HANDOFF.md
 ## 6. 最终执行顺序
 
 1. 修复并测试 `max_parallel=True/False`。
-2. 运行文档检查，确认三个文档都使用最新基线 230。
+2. 运行文档检查，确认三个文档都使用最新基线 233。
 3. 运行第 7 节全部本地验收命令。
 4. 如果全部通过，不再增加功能或重构已通过模块。
 5. 只在具备凭据和外部环境时进行第 5 节验证；没有条件就明确报告“未验证”。
@@ -232,7 +232,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 预期：
 
-- 完整 pytest 为 `230 passed` 或更高；若数量变化，立即同步三个文档。
+- 完整 pytest 为 `233 passed` 或更高；若数量变化，立即同步三个文档。
 - TUI 专项无未断言错误输出。
 - Ruff 和格式检查通过。
 - CLI smoke 正常退出。
@@ -244,14 +244,14 @@ $env:PYTHONIOENCODING = 'utf-8'
 - [x] `max_parallel=True/False` 立即抛出清晰的 `ValueError`。
 - [x] `max_parallel=0`、负数、浮点数、字符串仍立即失败。
 - [x] 正常并发限制和流式串行契约未回退。
-- [x] README、SEE、HANDOFF 当前测试基线一致为 230。
+- [x] README、SEE、HANDOFF 当前测试基线一致为 233。
 - [x] HANDOFF 只有当前状态，不含已修复问题的旧未修复正文。
 - [x] 完整 pytest、TUI 专项、Ruff、format、CLI smoke 全部通过。
 - [x] 真实外部验证项目仍明确标记为已验证或未验证。
 
 最终准确表述：
 
-> 核心本地行为已通过自动化测试，项目可作为 v1.0 RC 候选；正式 v1.0 仍等待真实 LLM、Registry、MCP、CI、wheel 和 Heartbeat 验证。
+> 核心本地行为和 Windows 干净环境 wheel smoke 已通过，项目可作为 v1.0 RC 候选；正式 v1.0 仍等待真实 LLM、Registry、MCP、远程 CI 和 Heartbeat 验证。
 
 ---
 

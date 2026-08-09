@@ -55,6 +55,11 @@ path = "soloflow/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["soloflow"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"skills" = "soloflow/_bundled/skills"
+"agents" = "soloflow/_bundled/agents"
+"flows" = "soloflow/_bundled/flows"
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

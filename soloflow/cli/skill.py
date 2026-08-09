@@ -10,7 +10,7 @@ from rich.table import Table
 
 from soloflow.core.skill_loader import (
     find_skill,
-    list_skills,
+    list_available_skills,
     load_skill,
     save_skill,
     validate_skill,
@@ -215,10 +215,6 @@ def list_cmd(
     global_: bool = typer.Option(False, "--global", "-g", help="仅列出全局 Skill"),
 ):
     """列出所有可用的 Skill。"""
-    # 项目 Skill
-    project_dir = Path("./skills")
-    global_dir = Path.home() / ".soloflow" / "skills"
-
     table = Table(title="Skills", show_header=True, header_style="bold cyan")
     table.add_column("名称", style="cyan")
     table.add_column("版本")
@@ -226,25 +222,19 @@ def list_cmd(
     table.add_column("标签")
     table.add_column("来源")
 
-    if not global_:
-        for s in list_skills(project_dir):
-            table.add_row(
-                s["name"],
-                s["version"],
-                s["description"][:60] + "..." if len(s["description"]) > 60 else s["description"],
-                ", ".join(s["tags"]),
-                "project",
-            )
-
-    if not local:
-        for s in list_skills(global_dir):
-            table.add_row(
-                s["name"],
-                s["version"],
-                s["description"][:60] + "..." if len(s["description"]) > 60 else s["description"],
-                ", ".join(s["tags"]),
-                "global",
-            )
+    skills = list_available_skills(
+        include_project=not global_,
+        include_global=not local,
+        include_bundled=not local and not global_,
+    )
+    for s in skills:
+        table.add_row(
+            s["name"],
+            s["version"],
+            s["description"][:60] + "..." if len(s["description"]) > 60 else s["description"],
+            ", ".join(s["tags"]),
+            s["source"],
+        )
 
     if len(table.rows) == 0:
         console.print("[dim]没有找到 Skill。使用 sf skill init 创建一个。[/dim]")

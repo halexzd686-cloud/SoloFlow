@@ -10,6 +10,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from soloflow.core.agent_runner import run_agent
+from soloflow.core.assets import bundled_asset_dir
 from soloflow.core.skill_loader import find_skill, load_skill
 from soloflow.models.agent import AgentDefinition, AgentSoul
 
@@ -24,9 +25,10 @@ def _agent_search_dirs() -> list[Path]:
 
     - agents/         项目内置/示例 Agent
     - .               项目根（老用法）
-    - .soloflow/agents 用户全局 Agent（sf agent create 的默认保存位置）
+    - .soloflow/agents 用户 Agent（sf agent create 的默认保存位置）
+    - wheel 内置 Agent
     """
-    return [Path("agents"), Path("."), AGENT_CONFIG_DIR]
+    return [Path("agents"), Path("."), AGENT_CONFIG_DIR, bundled_asset_dir("agents")]
 
 
 def _load_agent(name: str) -> AgentDefinition:
@@ -146,9 +148,7 @@ def list_cmd():
             a["name"],
             a["description"][:60] + "..." if len(a["description"]) > 60 else a["description"],
             ", ".join(a["skills"]),
-            "project"
-            if a["path"].startswith("agents") or "./" in a["path"] or ".\\" in a["path"]
-            else "global",
+            "bundled" if str(bundled_asset_dir("agents")) in a["path"] else "project/user",
         )
 
     console.print(table)

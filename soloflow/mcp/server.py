@@ -411,9 +411,9 @@ def _execute_tool(name: str, args: dict) -> str:
 
 def _tool_list_skills(args: dict) -> str:
     """列出所有 Skill。"""
-    from soloflow.core.skill_loader import list_skills
+    from soloflow.core.skill_loader import list_available_skills
 
-    skills = list_skills("skills")
+    skills = list_available_skills()
     if not skills:
         return "没有找到任何 Skill。用 sf skill init <name> 创建一个。"
 

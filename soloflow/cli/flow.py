@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from soloflow.core.assets import find_flow_path, list_flow_paths
 from soloflow.core.flow_engine import (
     _topological_sort,
     load_flow,
@@ -18,8 +19,6 @@ from soloflow.models.flow import FlowDefinition, FlowStep
 
 app = typer.Typer(help="Flow 工作流编排", no_args_is_help=True)
 console = Console()
-
-FLOWS_DIR = Path("flows")
 
 
 @app.command()
@@ -143,7 +142,8 @@ def validate(
 @app.command("list")
 def list_cmd():
     """列出所有 Flow。"""
-    if not FLOWS_DIR.is_dir():
+    flow_paths = list_flow_paths()
+    if not flow_paths:
         console.print("[dim]No flows found. Create one with sf flow init.[/dim]")
         return
 
@@ -153,7 +153,7 @@ def list_cmd():
     table.add_column("Steps")
     table.add_column("Description")
 
-    for f in sorted(FLOWS_DIR.glob("*.flow.y*ml")):
+    for f in flow_paths:
         try:
             flow = load_flow(f)
             table.add_row(
@@ -174,11 +174,8 @@ def show(
     dag: bool = typer.Option(False, "--dag", help="显示依赖图"),
 ):
     """查看 Flow 详情。"""
-    path = Path(name)
-    if not path.exists():
-        path = FLOWS_DIR / f"{name}.flow.yml"
-
     try:
+        path = find_flow_path(name)
         flow = load_flow(path)
     except FileNotFoundError:
         console.print(f"[red]Flow not found: {name}[/red]")
@@ -236,11 +233,8 @@ def run(
         sf flow run blog-pipeline -i topic="AI trends"
         sf flow run code-review --stream -i repo_path=./src
     """
-    path = Path(name)
-    if not path.exists():
-        path = FLOWS_DIR / f"{name}.flow.yml"
-
     try:
+        path = find_flow_path(name)
         flow = load_flow(path)
     except FileNotFoundError:
         console.print(f"[red]Flow not found: {name}[/red]")
