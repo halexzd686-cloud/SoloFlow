@@ -515,20 +515,17 @@ def _tool_run_skill(args: dict) -> str:
     skill_path = find_skill(skill_name)
     skill = load_skill(skill_path)
 
-    # 通过 runner 执行（它处理 prompt 拼接和 LLM 调用）
-    # 但是 runner.run_skill 的接口不同，直接使用 call_llm
-    from soloflow.llm.client import call_llm
+    from soloflow.core.runner import execute_prompt, render_skill_prompt
 
-    full_prompt = f"{skill.full_prompt}\n\n---\n\n# Task\n\n{task}"
     try:
-        result = call_llm(
-            prompt=full_prompt,
+        result = execute_prompt(
+            render_skill_prompt(skill, task),
             model=skill.config.model,
             provider=skill.config.provider,
             temperature=skill.config.temperature,
             max_tokens=skill.config.max_tokens,
         )
-        return result
+        return result.content
     except RuntimeError as e:
         return f"执行失败: {e}\n请设置当前 Skill 供应商对应的 API Key 环境变量。"
 

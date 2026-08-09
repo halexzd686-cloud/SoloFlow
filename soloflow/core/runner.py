@@ -1,15 +1,142 @@
-"""Skill 执行器 —— 负责渲染 prompt 并调用 LLM。"""
+"""Single prompt rendering and LLM execution path for all assets."""
 
 import time
+from collections.abc import Callable
 
 from rich.console import Console
 from rich.panel import Panel
 
 from soloflow.live_view import live_skill
-from soloflow.llm.client import call_llm, call_llm_stream
+from soloflow.llm.client import LLMResult, call_llm_full, call_llm_stream
 from soloflow.models.skill import SkillFile
 
 console = Console()
+
+
+def render_prompt(instruction_sections: list[str], task: str) -> str:
+    """Combine non-empty instruction sections and one user task."""
+    sections = [section.strip() for section in instruction_sections if section.strip()]
+    sections.append(f"# Task\n\n{task.strip()}")
+    return "\n\n---\n\n".join(sections)
+
+
+def render_skill_prompt(skill: SkillFile, task: str) -> str:
+    """Render one Skill and task through the shared prompt format."""
+    return render_prompt([skill.full_prompt], task)
+
+
+def execute_prompt(
+    prompt: str,
+    *,
+    model: str,
+    provider: str,
+    temperature: float,
+    max_tokens: int,
+    dry_run: bool = False,
+    stream: bool = False,
+    timeout: float = 120.0,
+    max_retries: int = 2,
+    on_chunk: Callable[[str], None] | None = None,
+) -> LLMResult:
+    """Execute one rendered prompt through the only LLM call boundary."""
+    if not stream:
+        return call_llm_full(
+            prompt=prompt,
+            model=model,
+            provider=provider,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            dry_run=dry_run,
+            timeout=timeout,
+            max_retries=max_retries,
+        )
+
+    usage_holder: dict[str, LLMResult] = {}
+    chunks: list[str] = []
+
+    def capture_usage(result: LLMResult) -> None:
+        usage_holder["result"] = result
+
+    for chunk in call_llm_stream(
+        prompt=prompt,
+        model=model,
+        provider=provider,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        on_usage=capture_usage,
+        timeout=timeout,
+    ):
+        chunks.append(chunk)
+        if on_chunk:
+            on_chunk(chunk)
+
+    usage = usage_holder.get("result", LLMResult(model=model, provider=provider))
+    return usage.model_copy(update={"content": "".join(chunks)})
+
+
+def run_prompt_versions(
+    prompt: str,
+    *,
+    label: str,
+    model: str,
+    provider: str,
+    temperature: float,
+    max_tokens: int,
+    count: int = 1,
+    dry_run: bool = False,
+    stream: bool = False,
+) -> list[str]:
+    """Execute and display one or more versions of the same rendered prompt."""
+    results: list[str] = []
+    effective_count = 1 if stream else count
+
+    for index in range(effective_count):
+        if effective_count > 1:
+            console.print(f"\n[bold cyan]── 版本 {index + 1}/{effective_count} ──[/bold cyan]")
+        started = time.time()
+        try:
+            if stream:
+                console.print("[bold]>>> 输出:[/bold]\n")
+                response = execute_prompt(
+                    prompt,
+                    model=model,
+                    provider=provider,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True,
+                    on_chunk=lambda chunk: console.print(chunk, end="", highlight=False),
+                )
+                console.print()
+            else:
+                with live_skill(label) as view:
+                    response = execute_prompt(
+                        prompt,
+                        model=model,
+                        provider=provider,
+                        temperature=temperature + (index * 0.1 if count > 1 else 0),
+                        max_tokens=max_tokens,
+                        dry_run=dry_run,
+                    )
+                    view.complete(response.content)
+        except (RuntimeError, ImportError) as error:
+            console.print(f"[red]执行失败: {error}[/red]")
+            return []
+
+        result = response.content
+        results.append(result)
+        elapsed = time.time() - started
+        if not stream:
+            console.print(
+                Panel(
+                    result[:2000] + ("..." if len(result) > 2000 else ""),
+                    title=f"输出 {index + 1}/{effective_count} · {elapsed:.1f}s",
+                    border_style="green",
+                )
+            )
+        else:
+            console.print(f"\n[dim]耗时: {elapsed:.1f}s | {len(result)} 字符[/dim]")
+
+    return results
 
 
 def run_skill(
@@ -19,91 +146,15 @@ def run_skill(
     dry_run: bool = False,
     stream: bool = False,
 ) -> list[str]:
-    """用指定 Skill 执行任务。
-
-    Args:
-        skill: Skill 对象。
-        user_input: 用户输入的任务描述。
-        count: 生成多少个版本（抽卡模式）。
-        dry_run: 仅渲染不调用。
-        stream: 是否使用流式输出（逐 token 打印）。流式模式下 count 固定为 1。
-
-    Returns:
-        LLM 响应列表。
-    """
-    # 组合完整 prompt
-    system_prompt = skill.full_prompt
-    full_prompt = f"{system_prompt}\n\n---\n\n# Task\n\n{user_input}"
-
-    results = []
-
-    effective_count = 1 if stream else count
-
-    for i in range(effective_count):
-        if effective_count > 1:
-            console.print(f"\n[bold cyan]── 版本 {i + 1}/{effective_count} ──[/bold cyan]")
-
-        start = time.time()
-
-        if stream:
-            # ── 流式模式 ──
-            console.print(f"[dim]Skill: {skill.meta.name} v{skill.meta.version}[/dim]")
-            console.print("[bold]>>> 输出:[/bold]\n")
-
-            accumulated = []
-            try:
-                for chunk in call_llm_stream(
-                    prompt=full_prompt,
-                    model=skill.config.model,
-                    provider=skill.config.provider,
-                    temperature=skill.config.temperature,
-                    max_tokens=skill.config.max_tokens,
-                ):
-                    accumulated.append(chunk)
-                    console.print(chunk, end="", highlight=False)
-            except RuntimeError as e:
-                console.print(f"\n[red]执行失败: {e}[/red]")
-                return []
-            except ImportError as e:
-                console.print(f"\n[red]依赖缺失: {e}[/red]")
-                return []
-
-            console.print()  # 最后的换行
-            result = "".join(accumulated)
-        else:
-            # ── 非流式模式 ──
-            try:
-                with live_skill(skill.meta.name) as view:
-                    result = call_llm(
-                        prompt=full_prompt,
-                        model=skill.config.model,
-                        provider=skill.config.provider,
-                        temperature=(skill.config.temperature if count == 1 else 0.7 + (i * 0.1)),
-                        max_tokens=skill.config.max_tokens,
-                        dry_run=dry_run,
-                    )
-                    view.complete(result)
-            except RuntimeError as e:
-                console.print(f"[red]执行失败: {e}[/red]")
-                return []
-            except ImportError as e:
-                console.print(f"[red]依赖缺失: {e}[/red]")
-                return []
-
-        elapsed = time.time() - start
-        results.append(result)
-
-        # 显示结果（非流式模式下用 Panel 包裹）
-        if not stream:
-            console.print(f"\n[dim]耗时: {elapsed:.1f}s[/dim]")
-            console.print(
-                Panel(
-                    result[:2000] + ("..." if len(result) > 2000 else ""),
-                    title=f"输出 {i + 1}/{effective_count}",
-                    border_style="green",
-                )
-            )
-        else:
-            console.print(f"\n[dim]耗时: {elapsed:.1f}s | {len(result)} 字符[/dim]")
-
-    return results
+    """Render and execute one Skill through the shared Runner."""
+    return run_prompt_versions(
+        render_skill_prompt(skill, user_input),
+        label=skill.meta.name,
+        model=skill.config.model,
+        provider=skill.config.provider,
+        temperature=skill.config.temperature,
+        max_tokens=skill.config.max_tokens,
+        count=count,
+        dry_run=dry_run,
+        stream=stream,
+    )
