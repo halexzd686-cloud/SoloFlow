@@ -264,90 +264,46 @@ def list_skills(skills_dir: str | Path) -> list[dict]:
 
 
 def list_available_skills(
-    project_dir: str | Path = "skills",
+    project_dir: str | Path | None = None,
     *,
     include_project: bool = True,
     include_global: bool = True,
     include_bundled: bool = True,
 ) -> list[dict]:
-    """List discoverable Skills with project/user overrides taking precedence."""
-    from soloflow.core.assets import bundled_asset_dir
+    """List discoverable Skills through the shared asset precedence."""
+    from soloflow.core.assets import list_asset_paths
 
-    sources: list[tuple[str, Path]] = []
-    if include_project:
-        sources.append(("project", Path(project_dir)))
-    if include_global:
-        sources.append(("global", Path.home() / ".soloflow" / "skills"))
-    if include_bundled:
-        sources.append(("bundled", bundled_asset_dir("skills")))
-
+    paths = list_asset_paths(
+        "skill",
+        project_dir,
+        include_project=include_project,
+        include_user=include_global,
+        include_bundled=include_bundled,
+    )
     results: list[dict] = []
-    seen: set[str] = set()
-    for source, directory in sources:
-        for skill in list_skills(directory):
-            if skill["name"] in seen:
-                continue
-            seen.add(skill["name"])
-            results.append({**skill, "source": source})
+    for source, path in paths:
+        try:
+            skill = load_skill(path)
+        except Exception:
+            continue
+        results.append(
+            {
+                "name": skill.meta.name,
+                "path": str(path),
+                "version": skill.meta.version,
+                "description": skill.meta.description,
+                "tags": skill.meta.tags,
+                "source": "global" if source == "user" else source,
+            }
+        )
     return results
 
 
 def find_skill(name_or_path: str, project_dir: str | Path | None = None) -> Path:
-    """按名称或路径查找 Skill 文件。
+    """Resolve a Skill through the shared asset precedence."""
+    from soloflow.core.assets import find_asset
 
-    查找顺序：
-    1. 直接路径（文件或目录）
-    2. 项目 skills/ 目录下递归搜索（按目录名匹配）
-    3. 全局 ~/.soloflow/skills/ 目录下递归搜索
-    4. wheel 内置 Skill 目录下递归搜索
-
-    Args:
-        name_or_path: Skill 名称或路径。
-        project_dir: 项目根目录（默认当前工作目录）。
-
-    Returns:
-        SKILL.md 文件路径。
-
-    Raises:
-        FileNotFoundError: 未找到。
-    """
-    import os as _os
-
-    # 1. 直接路径
-    direct = Path(name_or_path)
-    if direct.exists():
-        if direct.is_file():
-            return direct
-        if direct.is_dir():
-            skill_md = direct / "SKILL.md"
-            if skill_md.exists():
-                return skill_md
-
-    # 2. 项目 skills/ 递归搜索
-    base = Path(project_dir) if project_dir else Path(_os.getcwd())
-    project_skills = base / "skills"
-    if project_skills.is_dir():
-        for skill_md in sorted(project_skills.rglob("SKILL.md")):
-            if skill_md.parent.name == name_or_path:
-                return skill_md
-
-    # 3. 全局 skills/ 递归搜索
-    global_skills = Path.home() / ".soloflow" / "skills"
-    if global_skills.is_dir():
-        for skill_md in sorted(global_skills.rglob("SKILL.md")):
-            if skill_md.parent.name == name_or_path:
-                return skill_md
-
-    # 4. wheel 内置 Skill（项目和用户资产均可覆盖）
-    from soloflow.core.assets import bundled_asset_dir
-
-    bundled_skills = bundled_asset_dir("skills")
-    if bundled_skills.is_dir():
-        for skill_md in sorted(bundled_skills.rglob("SKILL.md")):
-            if skill_md.parent.name == name_or_path:
-                return skill_md
-
-    raise FileNotFoundError(f"Skill not found: {name_or_path}")
+    return find_asset("skill", name_or_path, project_dir)
 
 
 def validate_skill(skill: SkillFile, strict: bool = False) -> list[str]:
