@@ -22,6 +22,26 @@ app.add_typer(agent.app, name="agent", help="Agent 智能体管理")
 app.add_typer(flow.app, name="flow", help="Flow 工作流编排")
 
 
+@app.command("run")
+def run_skill_shortcut(
+    skill_name: str = typer.Argument(..., help="Skill 名称或路径"),
+    task: str = typer.Argument(None, help="任务描述"),
+    input_file: str = typer.Option(None, "--file", "-f", help="从文件读取任务"),
+    count: int = typer.Option(1, "--count", "-n", help="生成几个版本"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="仅预览，不调用模型"),
+    stream: bool = typer.Option(False, "--stream", "-s", help="流式输出"),
+):
+    """运行一个 Skill（推荐入口）。"""
+    skill.run(
+        skill_name=skill_name,
+        prompt=task,
+        input_file=input_file,
+        count=count,
+        dry_run=dry_run,
+        stream=stream,
+    )
+
+
 @app.command()
 def mcp():
     """启动 MCP Server 模式（JSON-RPC over stdio）。
@@ -57,7 +77,11 @@ def mcp():
 
 
 @app.command()
-def mcp_config():
+def mcp_config(
+    set_token: str = typer.Option(None, "--set-token", help="设置 auth token（环境变量优先）"),
+    allow_tools: str = typer.Option(None, "--allow-tools", help="设置工具白名单（逗号分隔）"),
+    clear: bool = typer.Option(False, "--clear", help="清除所有安全限制"),
+):
     """查看/配置 MCP Server 的安全设置。
 
     包括 auth_token（访问认证）和 allowed_tools（工具白名单）。
@@ -67,9 +91,24 @@ def mcp_config():
       SOLOFLOW_MCP_TOKEN        认证 token
       SOLOFLOW_MCP_ALLOWED_TOOLS  允许的工具（逗号分隔）
     """
-    from soloflow.mcp.server import (
-        show_mcp_config,
-    )
+    from soloflow.mcp.server import MCP_CONFIG_PATH, save_mcp_config, show_mcp_config
+
+    if clear:
+        if MCP_CONFIG_PATH.exists():
+            MCP_CONFIG_PATH.unlink()
+            console.print("[green]MCP 安全配置已清除[/green]")
+        else:
+            console.print("[dim]没有配置文件需要清除[/dim]")
+        return
+
+    allowed_list = None
+    if allow_tools:
+        allowed_list = [tool.strip() for tool in allow_tools.split(",") if tool.strip()]
+
+    if set_token is not None or allow_tools is not None:
+        path = save_mcp_config(auth_token=set_token or "", allowed_tools=allowed_list)
+        console.print(f"[green][OK] MCP 配置已保存: {path}[/green]")
+        return
 
     config = show_mcp_config()
     console.print(Panel.fit("[bold cyan]MCP Server 安全配置[/bold cyan]", border_style="cyan"))
@@ -89,42 +128,8 @@ def mcp_config():
         for t in tools:
             console.print(f"  - {t}")
 
-    console.print(
-        "\n[dim]修改配置: sf mcp-config --set-token <token> --allow-tools tool1,tool2[/dim]"
-    )
+    console.print("\n[dim]修改: sf mcp-config --set-token <token> --allow-tools tool1,tool2[/dim]")
     console.print("[dim]清除限制: sf mcp-config --clear[/dim]")
-
-
-@app.command()
-def mcp_config_set(
-    set_token: str = typer.Option(None, "--set-token", help="设置 auth token（环境变量优先）"),
-    allow_tools: str = typer.Option(None, "--allow-tools", help="设置工具白名单（逗号分隔）"),
-    clear: bool = typer.Option(False, "--clear", help="清除所有安全限制"),
-):
-    """修改 MCP Server 安全配置。"""
-    from soloflow.mcp.server import save_mcp_config
-
-    if clear:
-        from soloflow.mcp.server import MCP_CONFIG_PATH
-
-        if MCP_CONFIG_PATH.exists():
-            MCP_CONFIG_PATH.unlink()
-            console.print("[green]MCP 安全配置已清除 —— 所有调用放行[/green]")
-        else:
-            console.print("[dim]没有配置文件需要清除[/dim]")
-        return
-
-    allowed_list = None
-    if allow_tools:
-        allowed_list = [t.strip() for t in allow_tools.split(",") if t.strip()]
-
-    path = save_mcp_config(auth_token=set_token or "", allowed_tools=allowed_list)
-    console.print(f"[green][OK] MCP 配置已保存: {path}[/green]")
-
-    if set_token:
-        console.print(f"  Token 认证: 已启用 ({set_token[:8]}...)")
-    if allowed_list:
-        console.print(f"  工具白名单: {', '.join(allowed_list)}")
 
 
 @app.command()

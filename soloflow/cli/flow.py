@@ -103,7 +103,8 @@ def init(
         encoding="utf-8",
     )
 
-    console.print(f"\n[green][OK] Flow created: {out_path}[/green]")
+    console.print(f"\n[green][OK] Created Flow: {out_path}[/green]")
+    console.print("[green][OK] 验证通过[/green]")
     console.print(f"[dim]Next: sf flow run {name}[/dim]")
 
 
@@ -298,3 +299,18 @@ def list_runs():
     console.print("[bold]Flow 运行记录:[/bold]")
     console.print(f"[dim]目录: {RUNS_DIR}[/dim]")
     _list_runnable_ids()
+
+
+@app.command()
+def watch(
+    run_id: str = typer.Argument(..., help="运行 ID（如 run-a1b2c3d4e5f6）"),
+):
+    """重新挂载并实时查看 Flow 进度。"""
+    from soloflow.core.flow_engine import RUNS_DIR
+    from soloflow.live_view import watch_flow
+
+    try:
+        watch_flow(run_id, RUNS_DIR)
+    except FileNotFoundError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)

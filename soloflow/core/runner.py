@@ -5,6 +5,7 @@ import time
 from rich.console import Console
 from rich.panel import Panel
 
+from soloflow.live_view import live_skill
 from soloflow.llm.client import call_llm, call_llm_stream
 from soloflow.models.skill import SkillFile
 
@@ -72,14 +73,16 @@ def run_skill(
         else:
             # ── 非流式模式 ──
             try:
-                result = call_llm(
-                    prompt=full_prompt,
-                    model=skill.config.model,
-                    provider=skill.config.provider,
-                    temperature=skill.config.temperature if count == 1 else 0.7 + (i * 0.1),
-                    max_tokens=skill.config.max_tokens,
-                    dry_run=dry_run,
-                )
+                with live_skill(skill.meta.name) as view:
+                    result = call_llm(
+                        prompt=full_prompt,
+                        model=skill.config.model,
+                        provider=skill.config.provider,
+                        temperature=(skill.config.temperature if count == 1 else 0.7 + (i * 0.1)),
+                        max_tokens=skill.config.max_tokens,
+                        dry_run=dry_run,
+                    )
+                    view.complete(result)
             except RuntimeError as e:
                 console.print(f"[red]执行失败: {e}[/red]")
                 return []

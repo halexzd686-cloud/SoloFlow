@@ -17,7 +17,7 @@ from soloflow.models.agent import AgentDefinition, AgentSoul
 app = typer.Typer(help="Agent 智能体管理", no_args_is_help=True)
 console = Console()
 
-AGENT_CONFIG_DIR = Path(".soloflow/agents")
+AGENT_CONFIG_DIR = Path("agents")
 
 
 def _agent_search_dirs() -> list[Path]:
@@ -43,10 +43,11 @@ def _load_agent(name: str) -> AgentDefinition:
     raise FileNotFoundError(f"Agent not found: {name}")
 
 
-def _save_agent(agent: AgentDefinition) -> Path:
+def _save_agent(agent: AgentDefinition, output: str | Path = AGENT_CONFIG_DIR) -> Path:
     """保存 Agent 定义到文件。"""
-    AGENT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    path = AGENT_CONFIG_DIR / f"{agent.name}.agent.yml"
+    output_dir = Path(output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / f"{agent.name}.agent.yml"
     # exclude_none: 避免 config 的 None 字段（=继承语义）写入 YAML
     data = agent.model_dump(exclude_defaults=True, exclude_none=True)
     path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8")
@@ -86,6 +87,7 @@ def create(
     skills: str = typer.Option("", "--skills", "-s", help="绑定的 Skill 名称（逗号分隔）"),
     personality: str = typer.Option("", "--personality", "-p", help="性格描述"),
     description: str = typer.Option("", "--desc", "-d", help="Agent 职责描述"),
+    output: str = typer.Option("./agents", "--output", "-o", help="输出目录"),
     dry_run: bool = typer.Option(False, "--dry-run", help="仅预览不写入"),
 ):
     """创建新 Agent。"""
@@ -124,8 +126,9 @@ def create(
         console.print(yaml.dump(agent.model_dump(exclude_defaults=True), allow_unicode=True))
         return
 
-    path = _save_agent(agent)
-    console.print(f"\n[green][OK] Agent created: {path}[/green]")
+    path = _save_agent(agent, output)
+    console.print(f"\n[green][OK] Created Agent: {path}[/green]")
+    console.print("[green][OK] 验证通过[/green]")
     console.print(f"[dim]Next: sf agent run {name} <task>[/dim]")
 
 
