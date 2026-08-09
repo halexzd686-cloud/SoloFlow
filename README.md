@@ -9,7 +9,7 @@
 
 SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
 
-当前版本为 `1.0.0rc1`。本地 239 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、Claude Code MCP 实连、远程 Registry 安装及 Heartbeat daemon 生命周期均已通过；真实 LLM、Registry publish/PR 和 Heartbeat 长时间稳定性仍待验证，详见[项目状态](STATUS.md)。
+当前版本为 `1.0.0rc1`。本地 240 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry 安装及 Heartbeat daemon 生命周期均已通过；其他 LLM 供应商、Registry publish/PR 和 Heartbeat 长时间稳定性仍待验证，详见[项目状态](STATUS.md)。
 
 ## 它解决什么问题
 
@@ -146,14 +146,15 @@ uv run ruff format --check soloflow tests
 uv build
 ```
 
-当前本地基线：239 项测试通过，63 个 Python 文件格式检查通过。远程 Windows/Linux × Python 3.12/3.13 矩阵和 Ubuntu clean-wheel smoke 已通过；最新结果以 GitHub Actions 页面为准。
+当前本地基线：240 项测试通过，63 个 Python 文件格式检查通过。远程 Windows/Linux × Python 3.12/3.13 矩阵和 Ubuntu clean-wheel smoke 已通过；最新结果以 GitHub Actions 页面为准。
 
 ## Roadmap
 
 - [x] Skill、Agent、Flow、TUI、MCP 和本地 Registry 基础能力
 - [x] Flow 并发、失败传播、运行持久化和恢复
 - [x] wheel 内置资产与源码目录外安装 smoke
-- [ ] 真实 LLM 多供应商端到端验证
+- [x] DeepSeek 真实 Skill、Agent、Flow 端到端与 token usage 验证
+- [ ] OpenAI、Anthropic 等其他 LLM 供应商端到端验证
 - [x] Claude Code 真实 MCP 客户端连接与工具调用验证
 - [x] 远程社区 Registry update、search、版本校验与 install
 - [ ] 远程社区 Registry publish/PR 闭环

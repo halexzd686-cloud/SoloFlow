@@ -20,6 +20,13 @@ def test_resolve_ref_step_output():
     assert _resolve_ref("$steps.research.output", context) == "research result"
 
 
+def test_resolve_ref_kebab_case_step_output():
+    """Flow 允许 kebab-case step id，输出引用必须完整解析连字符。"""
+    context = {"input": {}, "steps": {"agent-check": "SOLOFLOW_FLOW_OK"}}
+    assert _resolve_ref("$steps.agent-check.output", context) == "SOLOFLOW_FLOW_OK"
+    assert _resolve_ref("Result: $steps.agent-check.output", context) == "Result: SOLOFLOW_FLOW_OK"
+
+
 def test_resolve_ref_inline():
     """测试内联引用。"""
     context = {"input": {"topic": "AI"}, "steps": {}}

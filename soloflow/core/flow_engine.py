@@ -224,7 +224,7 @@ def _resolve_ref(ref: str, context: dict) -> str:
         return str(context.get("input", {}).get(key, ref))
 
     # 精确匹配 $steps.<id>.output
-    m = re.match(r"\$steps\.(\w+)\.output", str(ref))
+    m = re.match(r"\$steps\.([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\.output", str(ref))
     if m:
         step_id = m.group(1)
         return str(context.get("steps", {}).get(step_id, ref))
@@ -238,7 +238,7 @@ def _resolve_ref(ref: str, context: dict) -> str:
             val = str(context.get("input", {}).get(key, m.group(0)))
             result = result.replace(m.group(0), val)
         # 替换 $steps.<id>.output
-        for m in re.finditer(r"\$steps\.(\w+)\.output", result):
+        for m in re.finditer(r"\$steps\.([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\.output", result):
             step_id = m.group(1)
             val = str(context.get("steps", {}).get(step_id, m.group(0)))
             result = result.replace(m.group(0), val)
