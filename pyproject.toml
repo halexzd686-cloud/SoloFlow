@@ -34,7 +34,6 @@ dependencies = [
     "python-dotenv>=1.0",
     "litellm>=1.50",
     "httpx>=0.28",
-    "textual>=8.0",
 ]
 
 [project.urls]

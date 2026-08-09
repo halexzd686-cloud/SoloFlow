@@ -10,7 +10,6 @@ from soloflow.llm.client import LLMResult
 from soloflow.models.agent import (
     AgentConfigOverride,
     AgentDefinition,
-    AgentHeartbeat,
     AgentSoul,
 )
 from soloflow.models.skill import SkillConfig
@@ -25,7 +24,6 @@ def test_agent_definition_defaults():
     assert agent.description == ""
     assert agent.skills == []
     assert isinstance(agent.soul, AgentSoul)
-    assert isinstance(agent.heartbeat, AgentHeartbeat)
     # BUG-AGENT-001: config 是 AgentConfigOverride（全 Optional，None=继承）
     assert isinstance(agent.config, AgentConfigOverride)
     assert agent.config.model is None
@@ -97,29 +95,6 @@ def test_agent_config_override():
     assert agent.config.max_tokens == 8192
 
 
-def test_agent_heartbeat_defaults():
-    """测试心跳默认值。"""
-    hb = AgentHeartbeat()
-    assert hb.enabled is False
-    assert hb.interval == "1h"
-    assert hb.trigger_prompt == ""
-
-
-def test_agent_heartbeat_enabled():
-    """测试启用心跳的 Agent。"""
-    agent = AgentDefinition(
-        name="heartbeat-bot",
-        heartbeat=AgentHeartbeat(
-            enabled=True,
-            interval="30m",
-            trigger_prompt="Check for new issues and review them.",
-        ),
-    )
-    assert agent.heartbeat.enabled is True
-    assert agent.heartbeat.interval == "30m"
-    assert "Check for new issues" in agent.heartbeat.trigger_prompt
-
-
 # ── Agent YAML 序列化测试 ──
 
 
@@ -135,11 +110,6 @@ def test_agent_yaml_roundtrip():
             behavior_rules=["Always verify."],
         ),
         rules=["No markdown in code blocks."],
-        heartbeat=AgentHeartbeat(
-            enabled=True,
-            interval="2h",
-            trigger_prompt="Summarize recent activity.",
-        ),
         config=AgentConfigOverride(model="deepseek-v4-flash", temperature=0.5),
     )
 
@@ -157,7 +127,6 @@ def test_agent_yaml_roundtrip():
     assert loaded.soul.personality == agent.soul.personality
     assert loaded.soul.values == agent.soul.values
     assert loaded.config.temperature == 0.5
-    assert loaded.heartbeat.interval == "2h"
 
 
 def test_agent_yaml_file_save_load():

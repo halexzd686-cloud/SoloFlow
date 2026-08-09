@@ -345,68 +345,6 @@ def run(
     run_skill(skill, user_input, count=count, stream=stream)
 
 
-@app.command()
-def iter(
-    skill_name: str = typer.Argument(..., help="Skill 名称或路径"),
-    count: int = typer.Option(3, "--count", "-n", help="迭代轮数"),
-    test_input: list[str] = typer.Option(None, "--test", "-t", help="测试输入（可多次指定）"),
-    test_file: str = typer.Option(None, "--test-file", "-f", help="从文件读取测试输入（每行一个）"),
-    early_stop: float = typer.Option(0.02, "--early-stop", help="分数提升低于此值提前终止"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="仅模拟，不实际调用 LLM"),
-):
-    """对 Skill 进行自我迭代优化。
-
-    AI 自动执行：测试 → 评估 → 改进 → 再测试的循环，
-    持续优化 Skill 的 prompt 质量。
-
-    示例:
-        sf skill iter writer -n 10                       # 迭代 10 轮
-        sf skill iter writer -t "写一篇AI文章"            # 自定义测试
-        sf skill iter writer -f tests.txt -n 5           # 从文件读测试用例
-        sf skill iter writer --early-stop 0.01           # 更敏感的提前终止
-    """
-    try:
-        skill_path = find_skill(skill_name)
-        skill = load_skill(skill_path)
-    except FileNotFoundError:
-        console.print(f"[red]Skill not found: {skill_name}[/red]")
-        raise typer.Exit(1)
-
-    from soloflow.core.auto_iter import iterate_skill
-
-    test_inputs = list(test_input) if test_input else None
-
-    # 从文件读取测试输入
-    if test_file:
-        try:
-            file_path = Path(test_file)
-            if not file_path.exists():
-                console.print(f"[red]测试文件不存在: {test_file}[/red]")
-                raise typer.Exit(1)
-            file_inputs = [
-                line.strip()
-                for line in file_path.read_text(encoding="utf-8").splitlines()
-                if line.strip() and not line.strip().startswith("#")
-            ]
-            if test_inputs:
-                test_inputs.extend(file_inputs)
-            else:
-                test_inputs = file_inputs
-            console.print(f"[dim]从 {test_file} 加载了 {len(file_inputs)} 个测试用例[/dim]")
-        except Exception as e:
-            console.print(f"[red]读取测试文件失败: {e}[/red]")
-            raise typer.Exit(1)
-
-    iterate_skill(
-        skill,
-        skill_path,
-        count=count,
-        test_inputs=test_inputs,
-        dry_run=dry_run,
-        early_stop_threshold=early_stop,
-    )
-
-
 # ── 辅助函数 ──
 
 

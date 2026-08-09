@@ -17,10 +17,6 @@ soul:
   behavior_rules:
     - 每次修改必须说明理由
     - 不使用任何营销话术
-heartbeat:
-  enabled: false
-  interval: 1h
-  trigger_prompt: ""
 config: {}
 rules:
   - "输出前先检查是否有 AI 味，有则重写"
