@@ -341,6 +341,39 @@ def test_update_registry_pull_failure_not_reported_ok(monkeypatch, tmp_path):
     assert result is True
 
 
+def test_update_registry_replaces_incomplete_cache_from_same_parent(tmp_path):
+    """不完整缓存应通过同盘 staging 原子替换，避免 Windows 跨盘移动失败。"""
+    import subprocess
+    from unittest.mock import patch as mpatch
+
+    from soloflow.core import registry as reg
+
+    fake_cache = tmp_path / "registry-cache"
+    (fake_cache / ".git").mkdir(parents=True)
+    stale_file = fake_cache / "partial-clone.txt"
+    stale_file.write_text("incomplete", encoding="utf-8")
+
+    def fake_run(cmd, **kwargs):
+        staging = Path(cmd[-1])
+        (staging / ".git").mkdir()
+        (staging / "registry.yaml").write_text("skills:\n  - name: hello-world\n", encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout=b"", stderr=b"")
+
+    with (
+        mpatch.object(reg, "REGISTRY_CACHE", fake_cache),
+        mpatch.object(reg, "REGISTRY_INDEX", fake_cache / "registry.yaml"),
+        mpatch.object(reg, "REGISTRY_SKILLS", fake_cache / "skills"),
+        mpatch.object(reg.subprocess, "run", side_effect=fake_run) as run,
+    ):
+        result = reg.update_registry("https://example.test/registry.git")
+
+    assert result is True
+    assert (fake_cache / "registry.yaml").is_file()
+    assert not stale_file.exists()
+    clone_dir = Path(run.call_args.args[0][-1])
+    assert clone_dir.parent == fake_cache.parent
+
+
 def test_update_registry_pull_success(monkeypatch, tmp_path):
     """BUG-REG-003: pull 成功时返回 True。"""
     import subprocess
@@ -350,6 +383,7 @@ def test_update_registry_pull_success(monkeypatch, tmp_path):
 
     fake_cache = tmp_path / "registry-cache"
     (fake_cache / ".git").mkdir(parents=True)
+    (fake_cache / "registry.yaml").write_text("skills: []\n", encoding="utf-8")
 
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(

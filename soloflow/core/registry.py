@@ -88,9 +88,9 @@ def update_registry(registry_url: str = DEFAULT_REGISTRY_REPO) -> bool:
     Returns:
         是否更新成功。
     """
-    REGISTRY_CACHE.mkdir(parents=True, exist_ok=True)
+    REGISTRY_CACHE.parent.mkdir(parents=True, exist_ok=True)
 
-    if (REGISTRY_CACHE / ".git").exists():
+    if (REGISTRY_CACHE / ".git").exists() and REGISTRY_INDEX.exists():
         # 已有缓存，执行 pull
         console.print("[dim]Updating registry...[/dim]")
         try:
@@ -116,11 +116,16 @@ def update_registry(registry_url: str = DEFAULT_REGISTRY_REPO) -> bool:
             # 继续使用现有缓存
             return REGISTRY_INDEX.exists()
     else:
-        # 首次使用，clone
+        # 首次使用或缓存不完整时，clone 到同盘 staging 后原子替换。
+        # Windows 跨盘逐文件移动 .git pack 时可能被拒绝访问；把临时目录
+        # 放在缓存父目录可确保最终替换使用同一文件系统内的 rename。
         console.print(f"[dim]Cloning registry from {registry_url}...[/dim]")
+        backup: Path | None = None
         try:
-            # clone 到临时目录再移动
-            with tempfile.TemporaryDirectory() as tmp:
+            with tempfile.TemporaryDirectory(
+                prefix=".registry-clone-", dir=REGISTRY_CACHE.parent
+            ) as tmp:
+                staging = Path(tmp)
                 subprocess.run(
                     [
                         "git",
@@ -130,21 +135,28 @@ def update_registry(registry_url: str = DEFAULT_REGISTRY_REPO) -> bool:
                         "--branch",
                         DEFAULT_REGISTRY_BRANCH,
                         registry_url,
-                        tmp,
+                        str(staging),
                     ],
                     capture_output=True,
                     timeout=60,
                     check=True,
                 )
-                # 移动内容到缓存目录
-                for item in Path(tmp).iterdir():
-                    dest = REGISTRY_CACHE / item.name
-                    if dest.exists():
-                        if dest.is_dir():
-                            shutil.rmtree(dest)
-                        else:
-                            dest.unlink()
-                    shutil.move(str(item), str(dest))
+                if not (staging / "registry.yaml").is_file():
+                    raise RuntimeError("cloned registry is missing registry.yaml")
+
+                if REGISTRY_CACHE.exists():
+                    backup = REGISTRY_CACHE.parent / f".registry-backup-{uuid.uuid4().hex[:8]}"
+                    REGISTRY_CACHE.rename(backup)
+
+                try:
+                    staging.rename(REGISTRY_CACHE)
+                except OSError:
+                    if backup is not None and backup.exists() and not REGISTRY_CACHE.exists():
+                        backup.rename(REGISTRY_CACHE)
+                    raise
+
+                if backup is not None and backup.exists():
+                    shutil.rmtree(backup, ignore_errors=True)
             console.print("[green][OK] Registry cloned[/green]")
             return True
         except Exception as e:

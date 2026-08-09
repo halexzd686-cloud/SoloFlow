@@ -7,11 +7,13 @@
 ### Fixed
 
 - MCP Server 兼容仍使用 `initialize`、`notifications/initialized` 和 `ping` 的客户端生命周期，同时保留新版 `server/discover` 支持。
+- Registry 首次克隆改为缓存同盘 staging 和原子替换，避免 Windows 跨盘移动 `.git` pack 失败及半成品缓存被误用。
 
 ### Verification
 
 - Claude Code 2.1.201 在 Windows 11 上成功连接 stdio Server 并调用 `soloflow_list_skills`。
-- 本地回归基线更新为 236 项测试通过，Ruff check 与 format check 通过。
+- 远程 `skills-registry` 已完成损坏缓存恢复、update、search、严格版本校验和隔离 install。
+- 本地回归基线更新为 237 项测试通过，Ruff check 与 format check 通过。
 
 ## 1.0.0rc1 - 2026-08-09
 
