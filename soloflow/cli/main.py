@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from soloflow import __version__
-from soloflow.cli import agent, flow, registry, skill
+from soloflow.cli import agent, flow, skill
 from soloflow.config import load_project_env
 
 app = typer.Typer(
@@ -20,16 +20,6 @@ console = Console()
 app.add_typer(skill.app, name="skill", help="Skill 技能文件管理")
 app.add_typer(agent.app, name="agent", help="Agent 智能体管理")
 app.add_typer(flow.app, name="flow", help="Flow 工作流编排")
-app.add_typer(registry.app, name="registry", help="Skill Registry 社区技能市场")
-
-
-@app.command()
-def dashboard():
-    """启动 TUI 仪表盘（侘寂风）。"""
-    from soloflow.tui.app import SoloFlowApp
-
-    app = SoloFlowApp()
-    app.run()
 
 
 @app.command()

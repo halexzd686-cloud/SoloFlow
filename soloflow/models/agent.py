@@ -32,21 +32,12 @@ class AgentSoul(BaseModel):
     behavior_rules: list[str] = Field(default_factory=list, description="行为准则")
 
 
-class AgentHeartbeat(BaseModel):
-    """心跳机制——让 Agent 从被动执行者升级为主动工作者。"""
-
-    enabled: bool = Field(default=False, description="是否启用心跳")
-    interval: str = Field(default="1h", description="触发间隔（如 30m / 1h / 6h）")
-    trigger_prompt: str = Field(default="", description="触发时执行的指令")
-
-
 class AgentDefinition(BaseModel):
     """Agent 定义。
 
     一个 Agent 拥有：
     - 一份或多份 Skill（核心能力）
     - 一个 Soul（性格设定）
-    - 一个 Heartbeat（可选心跳机制）
     - 独立的 LLM 配置覆盖
     """
 
@@ -54,7 +45,6 @@ class AgentDefinition(BaseModel):
     description: str = Field(default="", description="Agent 职责描述")
     skills: list[str] = Field(default_factory=list, description="绑定的 Skill 名称列表")
     soul: AgentSoul = Field(default_factory=AgentSoul, description="性格设定")
-    heartbeat: AgentHeartbeat = Field(default_factory=AgentHeartbeat, description="心跳机制")
     config: AgentConfigOverride = Field(
         default_factory=AgentConfigOverride, description="LLM 配置覆盖（None=继承 Skill）"
     )

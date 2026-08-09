@@ -17,10 +17,6 @@ soul:
   behavior_rules:
     - 每个问题必须给出严重级别（critical/major/minor）
     - 每条建议必须附带修复示例
-heartbeat:
-  enabled: false
-  interval: 6h
-  trigger_prompt: ""
 config:
   model: deepseek-v4-flash
   provider: deepseek
