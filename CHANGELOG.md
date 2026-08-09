@@ -38,6 +38,7 @@
 ### Verification
 
 - 本地 164 项测试通过；Ruff check 与 34 个 Python 文件 format check 通过。
+- GitHub Actions 的 Windows/Linux × Python 3.12/3.13 测试矩阵和 Ubuntu clean-wheel build smoke 通过。
 - wheel 和 sdist 构建通过；wheel 在隔离环境安装后，从源码目录外执行 `sf run content-writer "测试主题" --dry-run` 成功。
 - 隔离安装包含 24 个包；`litellm` 已从项目依赖和锁文件移除。
 - `soloflow/` Python 代码 3,476 行，README 48 行，顶层命令 7 个。
