@@ -1,6 +1,6 @@
 # SoloFlow Project Status
 
-> Version: 0.9.1 | Stage: v1.0 Release Candidate preparation | Updated: 2026-08-09
+> Version: 1.0.0rc1 | Stage: v1.0 Release Candidate | Updated: 2026-08-09
 
 ## Verified locally
 

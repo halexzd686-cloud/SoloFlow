@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 1.0.0rc1 - 2026-08-09
+
 ### Added
 
 - GitHub 开源协作文件、用户文档和 tag 驱动的 Release 工作流。
