@@ -2,6 +2,47 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/)，版本变化按 Added、Changed、Fixed、Security 分类记录。
 
+## 2.0.0 - 2026-08-10
+
+### Added
+
+- 新增顶层快捷入口 `sf run <skill> <task>`，首次使用只需理解 Skill 一个概念。
+- 新增基于 Rich 的 Skill/Flow 实时视图和 `sf flow watch <run-id>`，替代 Textual 仪表盘。
+- Skill 模型配置新增 `base_url` 与 `api_key_env`；与 `model` 一起构成未来兼容接口的唯一配置缝隙。
+
+### Changed
+
+- README 收敛为 48 行的新手入口，教程保留一个完整 TrailLight 案例。
+- Skill、Flow、Agent 统一使用“项目目录 → `~/.soloflow/` → 安装包内置”资产发现顺序。
+- Skill、Agent、Flow 的 Prompt 拼装、模型调用与输出展示统一进入 `core/runner.py`。
+- Agent 加载与保存下沉到 Core，消除 `core → cli` 反向依赖。
+- `run_flow()` 只保留 5 个公开参数并缩短到 24 行；恢复状态仅由 `resume_flow()` 处理。
+- LLM 客户端改为 `httpx` 直连 DeepSeek 的 OpenAI 兼容 Chat Completions 接口。全项目只通过 `chat()` 调用模型，当前白名单只允许 `deepseek/deepseek-v4-flash`，并在读取 API Key 前拒绝其他目标。
+
+### Removed
+
+- 删除 Heartbeat daemon 与 `agent heartbeat`。迁移方式：用 Task Scheduler、cron 等系统定时器调用 `sf run`。
+- 删除远程 Registry 及 publish/install/update 命令。迁移方式：直接用 Git 分享和版本管理 Skill 文件。
+- 删除 Textual TUI 与 `dashboard`。运行时进度改由 Rich 视图展示，需要重新挂载时使用 `sf flow watch`。
+- 删除 `skill iter` 与 auto_iter。迁移方式：直接编辑 Skill，并通过 Git 评审和回滚。
+- 删除 Skill `depends_on`、版本约束小语言和迭代元数据；Flow 步骤的 `depends_on` 保持不变。
+- 删除空的 `storage/`、`utils/` 包，以及 `litellm`、`textual` 依赖。
+
+### Breaking Changes
+
+- Skill frontmatter 不再使用 `provider`；改用 `base_url`、`api_key_env`、`model`。当前可用值仍固定为 DeepSeek 默认组合。
+- Agent 的模型覆盖字段同步移除 `provider`，可按需覆盖 `base_url`、`api_key_env`、`model`、`temperature`、`max_tokens`。
+- 依赖 Heartbeat、Registry、dashboard、`skill iter` 或 Skill 依赖元数据的脚本需要按上面的迁移说明调整。
+- 调用 `run_flow()` 私有恢复参数的代码应改用 `resume_flow(run_id, ...)`。
+
+### Verification
+
+- 本地 164 项测试通过；Ruff check 与 34 个 Python 文件 format check 通过。
+- wheel 和 sdist 构建通过；wheel 在隔离环境安装后，从源码目录外执行 `sf run content-writer "测试主题" --dry-run` 成功。
+- 隔离安装包含 24 个包；`litellm` 已从项目依赖和锁文件移除。
+- `soloflow/` Python 代码 3,476 行，README 48 行，顶层命令 7 个。
+- 本节记录的是 `dev` 分支发布候选验收；尚未合并 `main`、打标签或发布。
+
 ## 1.0.1 - 2026-08-09
 
 ### Changed
