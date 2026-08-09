@@ -399,30 +399,26 @@ def test_list_agents_includes_builtin_examples(monkeypatch, tmp_path):
 def test_list_agents_dedup_priority(monkeypatch, tmp_path):
     """P2-001: 同名 Agent 出现在多个目录时只保留最高优先级一项。"""
     from soloflow.cli import agent as agent_cli
+    from soloflow.core import assets
 
-    # 构造: agents/ 下 name=dup-agent 版本 A；.soloflow/agents/ 下同名版本 B
+    # 构造: 项目 agents/ 与安装包内置目录存在同名 Agent。
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir()
     (agents_dir / "dup-agent.agent.yml").write_text(
         "name: dup-agent\ndescription: from agents dir\nskills: [content-writer]\n",
         encoding="utf-8",
     )
-    global_dir = tmp_path / ".soloflow" / "agents"
-    global_dir.mkdir(parents=True)
-    (global_dir / "dup-agent.agent.yml").write_text(
-        "name: dup-agent\ndescription: from global dir\nskills: [code-reviewer]\n",
+    bundled_root = tmp_path / "installed" / "_bundled"
+    bundled_dir = bundled_root / "agents"
+    bundled_dir.mkdir(parents=True)
+    (bundled_dir / "dup-agent.agent.yml").write_text(
+        "name: dup-agent\ndescription: from bundled dir\nskills: [code-reviewer]\n",
         encoding="utf-8",
     )
 
-    original_dirs = agent_cli._agent_search_dirs
-    agent_cli._agent_search_dirs = lambda: [
-        tmp_path / "agents",
-        tmp_path / ".soloflow" / "agents",
-    ]
-    try:
-        agents = agent_cli._list_agents()
-    finally:
-        agent_cli._agent_search_dirs = original_dirs
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(assets, "_BUNDLED_ROOT", bundled_root)
+    agents = agent_cli._list_agents()
 
     dup = [a for a in agents if a["name"] == "dup-agent"]
     assert len(dup) == 1, "同名 Agent 必须去重"

@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from soloflow.core.agent_runner import run_agent
-from soloflow.core.assets import bundled_asset_dir
+from soloflow.core.assets import asset_name, find_asset, list_asset_paths
 from soloflow.core.skill_loader import find_skill, load_skill
 from soloflow.models.agent import AgentDefinition, AgentSoul
 
@@ -20,27 +20,11 @@ console = Console()
 AGENT_CONFIG_DIR = Path("agents")
 
 
-def _agent_search_dirs() -> list[Path]:
-    """统一的 Agent 定义搜索目录（P2-001 修复，优先级从高到低）。
-
-    - agents/         项目内置/示例 Agent
-    - .               项目根（老用法）
-    - .soloflow/agents 用户 Agent（sf agent create 的默认保存位置）
-    - wheel 内置 Agent
-    """
-    return [Path("agents"), Path("."), AGENT_CONFIG_DIR, bundled_asset_dir("agents")]
-
-
 def _load_agent(name: str) -> AgentDefinition:
     """按名称加载 Agent 定义。"""
-    for d in _agent_search_dirs():
-        for suffix in (".agent.yml", ".agent.yaml"):
-            p = d / f"{name}{suffix}"
-            if p.exists():
-                data = yaml.safe_load(p.read_text(encoding="utf-8"))
-                return AgentDefinition(**data)
-
-    raise FileNotFoundError(f"Agent not found: {name}")
+    path = find_asset("agent", name)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return AgentDefinition(**data)
 
 
 def _save_agent(agent: AgentDefinition, output: str | Path = AGENT_CONFIG_DIR) -> Path:
@@ -55,29 +39,22 @@ def _save_agent(agent: AgentDefinition, output: str | Path = AGENT_CONFIG_DIR) -
 
 
 def _list_agents() -> list[dict]:
-    """列出所有 Agent 定义（P2-001: 含 agents/ 目录，按名称去重保留最高优先级）。"""
+    """列出通过统一资产顺序发现的 Agent。"""
     results: list[dict] = []
-    seen: set[str] = set()
-    for d in _agent_search_dirs():
-        if not d.is_dir():
+    for source, path in list_asset_paths("agent"):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            results.append(
+                {
+                    "name": data.get("name", asset_name("agent", path)),
+                    "path": str(path),
+                    "description": data.get("description", ""),
+                    "skills": data.get("skills", []),
+                    "source": source,
+                }
+            )
+        except Exception:
             continue
-        for f in sorted(d.glob("*.agent.y*ml")):
-            try:
-                data = yaml.safe_load(f.read_text(encoding="utf-8"))
-                name = data.get("name", f.stem.replace(".agent", ""))
-                if name in seen:
-                    continue  # 已由更高优先级目录提供
-                seen.add(name)
-                results.append(
-                    {
-                        "name": name,
-                        "path": str(f),
-                        "description": data.get("description", ""),
-                        "skills": data.get("skills", []),
-                    }
-                )
-            except Exception:
-                continue
     return results
 
 
@@ -151,7 +128,7 @@ def list_cmd():
             a["name"],
             a["description"][:60] + "..." if len(a["description"]) > 60 else a["description"],
             ", ".join(a["skills"]),
-            "bundled" if str(bundled_asset_dir("agents")) in a["path"] else "project/user",
+            a["source"],
         )
 
     console.print(table)

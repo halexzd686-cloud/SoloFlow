@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-from soloflow.cli.agent import _list_agents
 from soloflow.core import assets
 from soloflow.core.skill_loader import find_skill, list_available_skills, load_skill
 
@@ -64,7 +63,43 @@ def test_project_flow_overrides_bundled_flow(monkeypatch, tmp_path):
     assert [path.name for path in paths] == ["shared.flow.yml", "bundled-only.flow.yml"]
 
 
+def test_all_asset_kinds_share_project_user_bundled_precedence(monkeypatch, tmp_path):
+    project_root = tmp_path / "project"
+    user_root = tmp_path / "home"
+    bundled_root = tmp_path / "installed" / "_bundled"
+    monkeypatch.setattr(Path, "home", lambda: user_root)
+    monkeypatch.setattr(assets, "_BUNDLED_ROOT", bundled_root)
+
+    fixtures = {
+        "skill": ("skills/shared/SKILL.md", "skills/user-only/SKILL.md"),
+        "flow": ("flows/shared.flow.yml", "flows/user-only.flow.yml"),
+        "agent": ("agents/shared.agent.yml", "agents/user-only.agent.yml"),
+    }
+    for kind, (shared_rel, user_rel) in fixtures.items():
+        project_path = project_root / shared_rel
+        project_path.parent.mkdir(parents=True, exist_ok=True)
+        project_path.write_text("project", encoding="utf-8")
+
+        user_path = user_root / ".soloflow" / user_rel
+        user_path.parent.mkdir(parents=True, exist_ok=True)
+        user_path.write_text("user", encoding="utf-8")
+
+        bundled_shared = bundled_root / shared_rel
+        bundled_shared.parent.mkdir(parents=True, exist_ok=True)
+        bundled_shared.write_text("bundled", encoding="utf-8")
+
+        assert assets.find_asset(kind, "shared", project_root) == project_path
+        assert assets.find_asset(kind, "user-only", project_root) == user_path
+        listed = assets.list_asset_paths(kind, project_root)
+        assert [(source, assets.asset_name(kind, path)) for source, path in listed] == [
+            ("project", "shared"),
+            ("user", "user-only"),
+        ]
+
+
 def test_agent_list_uses_bundled_assets_outside_project(monkeypatch, tmp_path):
+    from soloflow.cli.agent import _list_agents
+
     bundled_root = tmp_path / "installed" / "_bundled"
     bundled_agents = bundled_root / "agents"
     bundled_agents.mkdir(parents=True)
