@@ -56,7 +56,6 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" dist/* "${args[@]}"
 
   publish-pypi:
-    if: ${{ !contains(github.ref_name, '-rc.') }}
     needs: build-and-release
     runs-on: ubuntu-latest
     environment:

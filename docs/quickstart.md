@@ -8,6 +8,14 @@
 
 ## Install from source
 
+运行 PyPI 预发布版：
+
+```bash
+uvx --from soloflow==1.0.0rc5 sf version
+```
+
+从源码安装开发版本：
+
 ```bash
 git clone https://github.com/halexzd686-cloud/SoloFlow.git
 cd SoloFlow

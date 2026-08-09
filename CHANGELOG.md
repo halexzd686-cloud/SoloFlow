@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+## 1.0.0rc5 - 2026-08-09
+
+### Changed
+
+- GitHub Release 工作流现在也通过 PyPI Trusted Publishing 上传 RC 标签，用预发布版本验证正式发布链路。
+
 ## 1.0.0rc4 - 2026-08-09
 
 ### Added

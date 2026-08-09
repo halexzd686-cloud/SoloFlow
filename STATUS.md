@@ -1,6 +1,6 @@
 # SoloFlow Project Status
 
-> Version: 1.0.0rc4 | Stage: v1.0 Release Candidate | Updated: 2026-08-09
+> Version: 1.0.0rc5 | Stage: v1.0 Release Candidate | Updated: 2026-08-09
 
 ## Verified locally
 
@@ -23,7 +23,7 @@
 - GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
 - CLI 可安全加载当前工作目录 `.env`，已有进程环境变量优先且不会搜索父目录。
-- PyPI 项目链接元数据已补齐；稳定标签的 Trusted Publishing 工作流已准备，RC 标签不会上传 PyPI。
+- PyPI 项目链接元数据已补齐；Trusted Publishing 工作流会用 RC5 验证预发布上传链路。
 
 ## Not yet externally verified
 
