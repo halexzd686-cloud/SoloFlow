@@ -1515,6 +1515,19 @@ def test_stream_mode_cli_passthrough():
 # ── P1-002: max_parallel 非法值校验 ──
 
 
+def test_run_flow_is_small_public_entry_point():
+    """run_flow 仅接受新运行参数，恢复状态由 resume_flow 独立处理。"""
+    import inspect
+
+    from soloflow.core.flow_engine import run_flow
+
+    parameters = list(inspect.signature(run_flow).parameters)
+    source_lines = inspect.getsourcelines(run_flow)[0]
+
+    assert parameters == ["flow", "inputs", "max_parallel", "dry_run", "stream"]
+    assert len(source_lines) < 150
+
+
 def test_run_flow_rejects_zero_max_parallel():
     """P1-002 回归: max_parallel=0 立即抛 ValueError（不创建零容量 semaphore 死锁）。"""
     import pytest
