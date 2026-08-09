@@ -1,6 +1,6 @@
 # SoloFlow Project Status
 
-> Version: 1.0.1 candidate | Stage: Local validation | Updated: 2026-08-09
+> Version: 1.0.1 | Stage: Stable | Updated: 2026-08-09
 
 ## Verified locally
 
@@ -31,11 +31,11 @@
 - `deepseek/deepseek-v4-flash` 是当前唯一允许的调用目标，真实 Skill、Agent、Flow、错误处理和 Heartbeat 链路均已验收。
 - 其他 provider 或 model 会在读取 API Key 和发起网络请求前被拒绝，避免意外产生其他供应商费用。
 
-## Current candidate work
+## v1.0.1 release changes
 
 - README 已按“概念解释 → dry-run → 配置 → 真实 Skill → 完整 Flow”重构。
 - `docs/tutorial.md` 新增 TrailLight Mini 虚拟案例、预期行为、恢复教学和常见问题。
-- `v1.0.1` 尚未创建 Git 标签、GitHub Release 或 PyPI 发行版；完成本地与 CI 验收后再发布。
+- 发布提交已通过 Windows/Linux × Python 3.12/3.13 CI 和 clean-wheel smoke。
 
 ## Not yet externally verified
 

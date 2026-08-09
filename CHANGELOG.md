@@ -2,7 +2,7 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/)，版本变化按 Added、Changed、Fixed、Security 分类记录。
 
-## 1.0.1 - Unreleased
+## 1.0.1 - 2026-08-09
 
 ### Changed
 

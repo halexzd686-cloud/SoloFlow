@@ -9,7 +9,7 @@
 
 SoloFlow 是一个文件驱动的 AI 工作流工具。你可以把“怎么写文章”“怎么审查代码”这类经验写进 `SKILL.md`，把一个角色需要的能力组合成 Agent，再用 YAML Flow 串起调研、写作、分发等多个步骤。所有配置都是普通文本，能在本地运行，也能用 Git 审查、回滚和分享。
 
-当前代码为 `1.0.1` 候选版，仅接入已真实验收的 `deepseek/deepseek-v4-flash`；PyPI 最新正式版为 `1.0.0`。
+当前稳定版本为 `1.0.1`，仅接入已真实验收的 `deepseek/deepseek-v4-flash`。
 
 ## 一分钟理解 SoloFlow
 
@@ -167,11 +167,11 @@ SoloFlow 是 Prompt 与 LLM 工作流编排工具，不是完整的自主 Agent 
 
 ## 项目状态与路线
 
-`v1.0.0` 已发布到 [PyPI](https://pypi.org/project/soloflow/) 和 [GitHub Releases](https://github.com/halexzd686-cloud/SoloFlow/releases/tag/v1.0.0)，并完成跨平台 CI、发行包哈希、数字证明、干净安装、DeepSeek 真实调用、MCP、Registry 与 Heartbeat 验收。
+`v1.0.1` 已通过跨平台 CI、发行包检查和 clean-wheel smoke；正式发行见 [PyPI](https://pypi.org/project/soloflow/) 与 [GitHub Releases](https://github.com/halexzd686-cloud/SoloFlow/releases/tag/v1.0.1)。DeepSeek 真实调用、MCP、Registry 与 Heartbeat 验收也已完成。
 
 下一阶段计划包括：
 
-- 发布 `v1.0.1`：默认配置统一为 DeepSeek，并补充可复现的入门教程。
+- `v1.0.1`：默认配置统一为 DeepSeek-only，并补充可复现的入门教程。
 - `v1.1`：增强 Flow 条件控制和外部工具能力；是否扩展模型供应商另行评估。
 
 提交问题或代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题请按 [SECURITY.md](SECURITY.md) 私下报告，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
