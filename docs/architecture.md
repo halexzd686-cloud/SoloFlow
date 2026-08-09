@@ -1,47 +1,47 @@
 # Architecture
 
-SoloFlow 使用文件作为配置、共享和版本控制边界。
+SoloFlow v2 只保留一条核心路径：加载文件资产，渲染 Prompt，调用 DeepSeek，保存结果。
 
 ```mermaid
-flowchart TD
-    CLI["Typer CLI"] --> SkillLoader["Skill Loader"]
-    CLI --> AgentRunner["Agent Runner"]
-    CLI --> FlowEngine["Flow Engine"]
-    CLI --> Registry["Registry"]
-    CLI --> TUI["Textual TUI"]
-    MCP["MCP stdio Server"] --> SkillLoader
-    MCP --> AgentRunner
-    MCP --> FlowEngine
-    AgentRunner --> SkillLoader
-    FlowEngine --> SkillLoader
-    FlowEngine --> AgentRunner
-    SkillLoader --> LLM["LiteLLM Client"]
-    AgentRunner --> LLM
-    FlowEngine --> Runs[".soloflow/runs"]
-    Registry --> Git["Git Registry"]
+flowchart LR
+    CLI["CLI"] --> Runner["Core Runner"]
+    MCP["MCP（高级入口）"] --> Runner
+    Runner --> Assets["Skill / Flow / Agent"]
+    Runner --> LLM["httpx → DeepSeek"]
+    Runner --> Runs[".soloflow/runs"]
+    Runs --> Live["Rich 实时视图"]
 ```
 
-## Asset precedence
+## 三种资产
+
+- Skill：包含模型配置、Prompt 和规则的 `SKILL.md`。
+- Flow：描述步骤依赖和输入输出映射的 `*.flow.yml`。
+- Agent：组合人格、规则和 Skill 的 `*.agent.yml`。
+
+三者共用同一套发现顺序：
 
 ```text
-Project assets
-→ user assets under ~/.soloflow or project .soloflow
-→ assets bundled in the wheel
+当前项目 → ~/.soloflow/ → 安装包内置资产
 ```
 
-同名项目资产覆盖默认资产，让安装包可以开箱体验，同时允许仓库精确控制自己的工作流。
+同名资产以前者为准。发现逻辑只存在于 `core/assets.py`。
 
-## Flow execution
+## 执行路径
 
-Flow 引擎先验证 DAG 和输入 schema，再进行拓扑分层。同一层的非流式步骤通过 `asyncio` 和线程桥接并发调用，同一个 semaphore 控制最大并行数。依赖步骤只有全部完成才可执行；失败或跳过状态会沿依赖链传播，独立分支可以继续。
+`core/runner.py` 负责加载资产、拼装 Prompt 和调用 LLM。Agent 与 Flow 复用同一执行函数，不各自实现模型调用。
 
-流式模式为了避免多个同步生成器交错输出，会规范化为串行执行。
+Flow 在执行前校验 DAG，再按拓扑层运行步骤；没有依赖关系的步骤可并行。每一步完成后写入 `.soloflow/runs/<run-id>.json`，用于实时展示和失败恢复。
 
-每一步结束后更新运行记录；resume 复用原 run ID、已完成输出、耗时和 token 统计。
+## LLM 边界
 
-## Trust boundaries
+LLM 客户端使用 `httpx` 请求 OpenAI 兼容接口，不引入 provider 基类或注册机制。配置保留 `base_url`、`api_key_env` 和 `model` 三个字段，但当前白名单只允许 `deepseek/deepseek-v4-flash`；其他目标在读取密钥前被拒绝。
 
-- 模型凭据来自环境变量，不应写入 Skill。
-- MCP 提供 token 和工具白名单，但仍应由客户端限制可调用范围。
-- Registry 内容属于外部输入；当前大小和结构校验不能替代签名验证。
-- Skill 和 Flow 主要生成 Prompt，不自动授予文件系统或网络能力。
+## 展示与协议
+
+CLI 使用 Rich 读取运行状态并展示进度，不拥有业务逻辑。MCP 是独立的高级入口，调用相同 Core API，不形成第二套执行路径。
+
+## 信任边界
+
+- API Key 只来自当前目录 `.env` 或进程环境变量。
+- Skill、Flow 和 Agent 是本地文本输入，不自动获得文件系统、浏览器或搜索权限。
+- 模型输出可能包含错误，涉及事实和决策时必须人工复核。
