@@ -5,11 +5,11 @@
 [![CI](https://github.com/halexzd686-cloud/SoloFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/halexzd686-cloud/SoloFlow/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Release%20Candidate-orange.svg)](STATUS.md)
+[![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg)](STATUS.md)
 
 SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
 
-当前版本为 `1.0.0rc5`。本地 248 项测试、GitHub Actions 跨平台矩阵、wheel 构建、PyPI Trusted Publishing 与官方索引干净安装、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install，以及 Heartbeat 故障注入与真实环境加速 soak 均已通过。v1.0 以 DeepSeek 为官方验证和推荐供应商；OpenAI、Anthropic 保留兼容入口，但在真实验证前视为实验性支持。详见[项目状态](STATUS.md)。
+当前稳定版本为 `1.0.0`。本地 248 项测试、GitHub Actions 跨平台矩阵、wheel 构建、PyPI Trusted Publishing 与官方索引干净安装、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install，以及 Heartbeat 故障注入与真实环境加速 soak 均已通过。v1.0 以 DeepSeek 为官方验证和推荐供应商；OpenAI、Anthropic 保留兼容入口，但在真实验证前视为实验性支持。详见[项目状态](STATUS.md)。
 
 ## 它解决什么问题
 
@@ -38,10 +38,10 @@ flowchart LR
 
 ## 安装
 
-可以从 PyPI 安装当前预发布版：
+可以从 PyPI 直接运行稳定版：
 
 ```bash
-uvx --from soloflow==1.0.0rc5 sf version
+uvx --from soloflow sf version
 ```
 
 也可以从源码安装：
@@ -181,7 +181,7 @@ uv build
 - [x] Heartbeat PID 复用识别与无关进程保护
 - [x] Heartbeat 500 周期超时、连接、限流和空响应故障注入
 - [x] Heartbeat 67 分钟真实 DeepSeek 加速稳定性验收（33/33 次成功）
-- [ ] `v1.0.0` 正式版发布（PyPI 预发布链路已通过）
+- [x] `v1.0.0` 正式版发布（GitHub Release 与 PyPI Trusted Publishing）
 
 ## 参与项目
 
