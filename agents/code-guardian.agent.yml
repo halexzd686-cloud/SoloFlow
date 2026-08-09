@@ -19,7 +19,6 @@ soul:
     - 每条建议必须附带修复示例
 config:
   model: deepseek-v4-flash
-  provider: deepseek
   temperature: 0.2
 rules:
   - "不放过任何安全问题，即使可能冒犯作者"

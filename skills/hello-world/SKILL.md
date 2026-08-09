@@ -8,7 +8,8 @@ tags:
 - writing
 - content
 model: deepseek-v4-flash
-provider: deepseek
+base_url: https://api.deepseek.com
+api_key_env: DEEPSEEK_API_KEY
 temperature: 0.7
 max_tokens: 4096
 context: 你是一位AI领域的资深开发者，擅长给小白写AI教学

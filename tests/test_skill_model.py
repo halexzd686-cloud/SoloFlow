@@ -46,7 +46,8 @@ def test_skill_defaults():
     skill = SkillFile(meta=SkillMeta(name="minimal", description="最小示例"))
 
     assert skill.config.model == "deepseek-v4-flash"
-    assert skill.config.provider == "deepseek"
+    assert skill.config.base_url == "https://api.deepseek.com"
+    assert skill.config.api_key_env == "DEEPSEEK_API_KEY"
     assert skill.config.temperature == 0.7
     assert skill.costar.context == ""
     assert skill.rules == []

@@ -54,6 +54,8 @@ _KNOWN_FRONTMATTER_KEYS = frozenset(
         "license",
         "tags",
         "model",
+        "base_url",
+        "api_key_env",
         "provider",
         "temperature",
         "max_tokens",
@@ -92,8 +94,9 @@ def _build_frontmatter(skill: SkillFile) -> str:
         "license": skill.meta.license,
         "tags": skill.meta.tags,
         # LLM 配置
+        "base_url": skill.config.base_url,
+        "api_key_env": skill.config.api_key_env,
         "model": skill.config.model,
-        "provider": skill.config.provider,
         "temperature": skill.config.temperature,
         "max_tokens": skill.config.max_tokens,
         # CoSTAR 字段
@@ -172,8 +175,9 @@ def load_skill(path: str | Path) -> SkillFile:
             response_format=str(frontmatter.get("response_format", "")),
         ),
         config=SkillConfig(
+            base_url=str(frontmatter.get("base_url", "https://api.deepseek.com")),
+            api_key_env=str(frontmatter.get("api_key_env", "DEEPSEEK_API_KEY")),
             model=str(frontmatter.get("model", "deepseek-v4-flash")),
-            provider=str(frontmatter.get("provider", "deepseek")),
             temperature=float(frontmatter.get("temperature", 0.7)),
             max_tokens=int(frontmatter.get("max_tokens", 4096)),
         ),

@@ -9,7 +9,8 @@ tags:
   - market
   - analysis
 model: deepseek-v4-flash
-provider: deepseek
+base_url: https://api.deepseek.com
+api_key_env: DEEPSEEK_API_KEY
 temperature: 0.5
 max_tokens: 4096
 context: |

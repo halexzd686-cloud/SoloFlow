@@ -18,8 +18,9 @@ class AgentConfigOverride(BaseModel):
     "用户没配置"与"用户显式指定默认值"。现在 None 语义清晰。
     """
 
+    base_url: str | None = Field(default=None, description="API 地址（None=继承 Skill）")
+    api_key_env: str | None = Field(default=None, description="Key 环境变量（None=继承 Skill）")
     model: str | None = Field(default=None, description="模型名（None=继承 Skill）")
-    provider: str | None = Field(default=None, description="提供商（None=继承 Skill）")
     temperature: float | None = Field(default=None, description="温度（None=继承 Skill）")
     max_tokens: int | None = Field(default=None, description="最大输出 token（None=继承 Skill）")
 

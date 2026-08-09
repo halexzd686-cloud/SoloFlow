@@ -497,7 +497,8 @@ def _tool_get_skill(args: dict) -> str:
     # Config
     lines.append(
         f"\n---\n**LLM 配置**: model={skill.config.model}, "
-        f"provider={skill.config.provider}, "
+        f"base_url={skill.config.base_url}, "
+        f"api_key_env={skill.config.api_key_env}, "
         f"temperature={skill.config.temperature}, "
         f"max_tokens={skill.config.max_tokens}"
     )
@@ -520,14 +521,15 @@ def _tool_run_skill(args: dict) -> str:
     try:
         result = execute_prompt(
             render_skill_prompt(skill, task),
+            base_url=skill.config.base_url,
+            api_key_env=skill.config.api_key_env,
             model=skill.config.model,
-            provider=skill.config.provider,
             temperature=skill.config.temperature,
             max_tokens=skill.config.max_tokens,
         )
         return result.content
     except RuntimeError as e:
-        return f"执行失败: {e}\n请设置当前 Skill 供应商对应的 API Key 环境变量。"
+        return f"执行失败: {e}\n请设置 DEEPSEEK_API_KEY 环境变量。"
 
 
 def _tool_list_flows(args: dict) -> str:

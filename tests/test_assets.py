@@ -131,5 +131,6 @@ def test_bundled_skills_use_verified_deepseek_defaults():
     assert bundled_skills
     for path in bundled_skills:
         skill = load_skill(path)
-        assert skill.config.provider == "deepseek"
+        assert skill.config.base_url == "https://api.deepseek.com"
+        assert skill.config.api_key_env == "DEEPSEEK_API_KEY"
         assert skill.config.model == "deepseek-v4-flash"

@@ -83,14 +83,16 @@ def test_agent_config_override():
     agent = AgentDefinition(
         name="custom-config",
         config=AgentConfigOverride(
+            base_url="https://api.deepseek.com",
+            api_key_env="DEEPSEEK_API_KEY",
             model="deepseek-v4-flash",
-            provider="deepseek",
             temperature=0.3,
             max_tokens=8192,
         ),
     )
+    assert agent.config.base_url == "https://api.deepseek.com"
+    assert agent.config.api_key_env == "DEEPSEEK_API_KEY"
     assert agent.config.model == "deepseek-v4-flash"
-    assert agent.config.provider == "deepseek"
     assert agent.config.temperature == 0.3
     assert agent.config.max_tokens == 8192
 
@@ -267,22 +269,25 @@ def test_agent_soul_with_values():
 
 def test_resolve_llm_config_all_none_inherits_skill():
     """BUG-AGENT-001: Agent config 全 None 时完全继承 Skill 配置。"""
-    fallback = SkillConfig(
-        model="skill-model", provider="deepseek", temperature=0.3, max_tokens=2048
+    fallback = SkillConfig(model="skill-model", temperature=0.3, max_tokens=2048)
+    base_url, api_key_env, model, temp, max_tok = resolve_llm_config(None, fallback)
+    assert (base_url, api_key_env, model, temp, max_tok) == (
+        "https://api.deepseek.com",
+        "DEEPSEEK_API_KEY",
+        "skill-model",
+        0.3,
+        2048,
     )
-    model, provider, temp, max_tok = resolve_llm_config(None, fallback)
-    assert (model, provider, temp, max_tok) == ("skill-model", "deepseek", 0.3, 2048)
 
 
 def test_resolve_llm_config_partial_override():
     """BUG-AGENT-001: 只覆盖部分字段，其余继承。"""
-    fallback = SkillConfig(
-        model="skill-model", provider="deepseek", temperature=0.3, max_tokens=2048
-    )
+    fallback = SkillConfig(model="skill-model", temperature=0.3, max_tokens=2048)
     override = AgentConfigOverride(model="agent-model")  # 只覆盖 model
-    model, provider, temp, max_tok = resolve_llm_config(override, fallback)
+    base_url, api_key_env, model, temp, max_tok = resolve_llm_config(override, fallback)
     assert model == "agent-model"
-    assert provider == "deepseek"  # 继承
+    assert base_url == "https://api.deepseek.com"  # 继承
+    assert api_key_env == "DEEPSEEK_API_KEY"  # 继承
     assert temp == 0.3  # 继承
     assert max_tok == 2048  # 继承
 
@@ -296,7 +301,7 @@ def test_resolve_llm_config_explicit_default_value_is_override():
     fallback = SkillConfig(model="skill-model", temperature=0.3)
     # 用户显式写 temperature=0.7（恰好等于全局默认值）
     override = AgentConfigOverride(temperature=0.7)
-    model, provider, temp, max_tok = resolve_llm_config(override, fallback)
+    _base_url, _api_key_env, model, temp, _max_tok = resolve_llm_config(override, fallback)
     assert temp == 0.7  # 显式覆盖生效，而不是回退到 0.3
     assert model == "skill-model"
 
@@ -305,14 +310,14 @@ def test_agent_config_serialization_roundtrip():
     """Agent config 保存/加载回路：None 字段不丢失。"""
     agent = AgentDefinition(
         name="cfg-agent",
-        config=AgentConfigOverride(model="my-model", provider="zhipu"),
+        config=AgentConfigOverride(model="my-model", api_key_env="CUSTOM_KEY"),
     )
     # CLI 保存用 exclude_defaults + exclude_none，避免 None 字段进入 YAML
     data = agent.model_dump(exclude_defaults=True, exclude_none=True)
-    assert data["config"] == {"model": "my-model", "provider": "zhipu"}
+    assert data["config"] == {"api_key_env": "CUSTOM_KEY", "model": "my-model"}
     reloaded = AgentDefinition(**data)
     assert reloaded.config.model == "my-model"
-    assert reloaded.config.provider == "zhipu"
+    assert reloaded.config.api_key_env == "CUSTOM_KEY"
     assert reloaded.config.temperature is None
 
 
