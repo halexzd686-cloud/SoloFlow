@@ -1,6 +1,6 @@
 # SoloFlow Project Status
 
-> Version: 2.0.0 candidate | Branch: `dev` | Updated: 2026-08-10 | Not released
+> Version: 2.0.0 | Stage: Release-ready | Branch: `main` | Updated: 2026-08-10
 
 ## Current scope
 
@@ -33,10 +33,10 @@
 - Skill 依赖版本小语言、Skill `depends_on` 与迭代元数据。
 - 空的 `storage/`、`utils/` 包。
 
-## Not yet verified for this candidate
+## Not yet verified for this release
 
 - 重构后的 `httpx` 客户端尚未执行付费的真实 DeepSeek 请求；协议、流式 SSE、usage、重试、认证失败和提前拒绝均由无网络 mock 测试覆盖。
-- v2.0.0 尚未合并 `main`、创建 tag、GitHub Release 或发布到 PyPI。
+- v2.0.0 尚未创建 tag、GitHub Release 或发布到 PyPI。
 
 ## Known limitations
 
@@ -47,4 +47,4 @@
 
 ## Release gate
 
-在项目所有者确认全部阶段验收结果之前，不合并 `main`、不打 tag、不发布 GitHub Release 或 PyPI。
+项目所有者已授权发布；以 `main` CI 全绿且 `v2.0.0` tag 精确指向发布提交作为最终门禁。
