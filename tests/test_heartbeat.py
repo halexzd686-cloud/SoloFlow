@@ -208,3 +208,61 @@ def test_list_heartbeats_does_not_crash():
     """测试列出心跳状态不崩溃。"""
     result = list_heartbeats()
     assert isinstance(result, list)
+
+
+def test_daemon_script_is_valid_python(monkeypatch, tmp_path):
+    """后台启动脚本必须可编译，并在子进程存活后才报告成功。"""
+    import subprocess
+
+    from soloflow.core import heartbeat as hb
+    from soloflow.models.agent import AgentDefinition, AgentHeartbeat, AgentSoul
+
+    captured = {}
+
+    class FakeProcess:
+        pid = 424242
+
+        def wait(self, timeout):
+            raise subprocess.TimeoutExpired("python", timeout)
+
+    def fake_popen(command, **kwargs):
+        captured["script"] = command[2]
+        return FakeProcess()
+
+    agent = AgentDefinition(
+        name="daemon-probe",
+        description="daemon test",
+        skills=["hello-world"],
+        soul=AgentSoul(personality="test"),
+        heartbeat=AgentHeartbeat(enabled=True, interval="1d", trigger_prompt="probe"),
+    )
+    monkeypatch.setattr(hb, "HEARTBEAT_DIR", tmp_path / "heartbeats")
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    assert hb._start_heartbeat_daemon(agent) is True
+    compile(captured["script"], "<heartbeat-daemon>", "exec")
+
+
+def test_list_heartbeats_reports_live_daemon(monkeypatch, tmp_path):
+    """持久化状态为 running 且 PID 存活时，列表不得误报 stopped。"""
+    from soloflow.core import heartbeat as hb
+
+    monkeypatch.setattr(hb, "HEARTBEAT_DIR", tmp_path / "heartbeats")
+    monkeypatch.setattr(hb, "_is_process_running", lambda pid: pid == 12345)
+    hb._save_heartbeat_state(
+        "live-daemon",
+        {"agent_name": "live-daemon", "interval": "1d", "status": "running"},
+    )
+    hb._write_pid("live-daemon", 12345)
+
+    beats = hb.list_heartbeats()
+
+    assert beats == [
+        {
+            "agent_name": "live-daemon",
+            "status": "running",
+            "interval": "1d",
+            "run_count": 0,
+            "last_run": "—",
+        }
+    ]

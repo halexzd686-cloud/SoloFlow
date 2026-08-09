@@ -121,7 +121,7 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
         else:
             console.print(msg)
 
-    _log(f"♥ Agent '{name}' 心跳已启动 (间隔: {_format_interval(interval_sec)})")
+    _log(f"[HB] Agent '{name}' 心跳已启动 (间隔: {_format_interval(interval_sec)})")
 
     if last_run:
         _log(f"  上次运行: {last_run}, 累计: {run_count} 次")
@@ -137,7 +137,7 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
             await asyncio.sleep(interval_sec)
 
             now = datetime.now(UTC).isoformat()
-            _log(f"♥ [{name}] 心跳触发")
+            _log(f"[HB] [{name}] 心跳触发")
 
             # 在线程池中执行阻塞的 run_agent，避免阻塞事件循环
             trigger = agent.heartbeat.trigger_prompt
@@ -164,7 +164,7 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
                 _log(f"  输出: {preview}")
 
         except asyncio.CancelledError:
-            _log(f"♥ Agent '{name}' 心跳已停止")
+            _log(f"[HB] Agent '{name}' 心跳已停止")
             _save_heartbeat_state(
                 name,
                 {
@@ -398,7 +398,9 @@ def _start_heartbeat_daemon(agent: AgentDefinition) -> bool:
         "    await _run_heartbeat_loop(agent, daemon=True)",
         "asyncio.run(_main())",
     ]
-    script = "; ".join(script_lines)
+    # compound statements such as ``async def`` cannot follow a semicolon.
+    # Newlines keep the generated program valid on every supported platform.
+    script = "\n".join(script_lines)
 
     try:
         if sys.platform == "win32":
@@ -420,6 +422,14 @@ def _start_heartbeat_daemon(agent: AgentDefinition) -> bool:
                 start_new_session=True,
             )
 
+        # Do not report success for a child that failed during import/config load.
+        try:
+            exit_code = proc.wait(timeout=0.2)
+        except subprocess.TimeoutExpired:
+            pass
+        else:
+            raise RuntimeError(f"daemon exited during startup (exit code {exit_code})")
+
         _write_pid(name, proc.pid)
         _save_heartbeat_state(
             name,
@@ -433,7 +443,7 @@ def _start_heartbeat_daemon(agent: AgentDefinition) -> bool:
         )
 
         console.print(
-            f"[green]♥ Agent '{name}' 心跳已在后台启动[/green] "
+            f"[green][HB] Agent '{name}' 心跳已在后台启动[/green] "
             f"(PID: {proc.pid}, 间隔: {agent.heartbeat.interval})"
         )
         console.print(f"[dim]日志: {HEARTBEAT_DIR / name}.log[/dim]")
@@ -461,7 +471,7 @@ def stop_heartbeat(name: str) -> bool:
         if not task.done():
             task.cancel()
             del _running_heartbeats[name]
-            console.print(f"[green]♥ Agent '{name}' 心跳已停止[/green]")
+            console.print(f"[green][HB] Agent '{name}' 心跳已停止[/green]")
             return True
         del _running_heartbeats[name]
 
@@ -481,7 +491,7 @@ def stop_heartbeat(name: str) -> bool:
             state["stopped_at"] = datetime.now(UTC).isoformat()
             _save_heartbeat_state(name, state)
 
-            console.print(f"[green]♥ Agent '{name}' 后台心跳已停止 (PID: {pid})[/green]")
+            console.print(f"[green][HB] Agent '{name}' 后台心跳已停止 (PID: {pid})[/green]")
             return True
         except OSError as e:
             console.print(f"[red]无法停止进程 {pid}: {e}[/red]")
@@ -579,10 +589,15 @@ def list_heartbeats() -> list[dict]:
                 continue  # 已在上面列出
             try:
                 state = json.loads(f.read_text(encoding="utf-8"))
+                status = "stopped"
+                if state.get("status") == "running":
+                    pid = _read_pid(name)
+                    if pid and _is_process_running(pid):
+                        status = "running"
                 results.append(
                     {
                         "agent_name": name,
-                        "status": "stopped",
+                        "status": status,
                         "interval": state.get("interval", "?"),
                         "run_count": state.get("run_count", 0),
                         "last_run": state.get("last_run", "—"),
@@ -601,7 +616,7 @@ def show_heartbeat_status() -> None:
         console.print("[dim]没有心跳记录。用 sf agent heartbeat start <name> 启动。[/dim]")
         return
 
-    table = Table(title="♥ Agent Heartbeats", header_style="bold cyan")
+    table = Table(title="Agent Heartbeats", header_style="bold cyan")
     table.add_column("Agent", style="cyan")
     table.add_column("Status")
     table.add_column("Interval")

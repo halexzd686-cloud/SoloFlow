@@ -268,7 +268,7 @@ def heartbeat_start(
     ok = start_heartbeat(agent, daemon=daemon)
     if ok and not daemon:
         console.print(
-            f"[green]♥ 心跳已启动[/green] "
+            f"[green][HB] 心跳已启动[/green] "
             f"间隔: {agent.heartbeat.interval}, "
             f"任务: {agent.heartbeat.trigger_prompt[:60]}..."
         )
@@ -282,7 +282,7 @@ def heartbeat_start(
             from soloflow.core.heartbeat import stop_heartbeat
 
             stop_heartbeat(agent_name)
-            console.print("\n[green]♥ 心跳已安全停止[/green]")
+            console.print("\n[green][HB] 心跳已安全停止[/green]")
     elif not ok:
         raise typer.Exit(1)
 
@@ -300,7 +300,7 @@ def heartbeat_stop(
 
     ok = stop_heartbeat(agent_name)
     if ok:
-        console.print(f"[green]♥ Agent '{agent_name}' 心跳已停止[/green]")
+        console.print(f"[green][HB] Agent '{agent_name}' 心跳已停止[/green]")
 
 
 @heartbeat_app.command("list")
@@ -331,6 +331,6 @@ def heartbeat_resume():
     resumed = resume_heartbeats()
 
     if resumed:
-        console.print(f"[green]♥ 已恢复 {len(resumed)} 个心跳: {', '.join(resumed)}[/green]")
+        console.print(f"[green][HB] 已恢复 {len(resumed)} 个心跳: {', '.join(resumed)}[/green]")
     else:
         console.print("[dim]没有需要恢复的心跳[/dim]")
