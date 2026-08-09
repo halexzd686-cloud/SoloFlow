@@ -1,0 +1,65 @@
+# Blog Pipeline — 端到端内容创作流水线
+#
+# 这个 Flow 展示了 SoloFlow 最经典的用法：
+# 调研 → 写作 → 社交分发，三步流水线
+
+name: blog-pipeline
+version: 1.0.0
+description: >
+  End-to-end blog post creation pipeline.
+  Research the topic → write a long-form article → generate social media posts.
+
+input_schema:
+  topic:
+    type: string
+    required: true
+    description: Blog post topic
+
+steps:
+  # Step 1: 市场调研（无依赖，最先执行）
+  - id: research
+    skill: market-researcher
+    description: Research trending angles and competitive content for the topic
+    input:
+      mapping:
+        topic: $input.topic
+
+  # Step 2: 撰写长文（依赖 research）
+  - id: write
+    skill: content-writer
+    description: Write the full blog post based on research findings
+    depends_on:
+      - research
+    input:
+      mapping:
+        topic: $input.topic
+        research_data: $steps.research.output
+
+  # Step 3: 生成社交媒体文案（依赖 write，与后续步骤并行）
+  - id: social-twitter
+    skill: content-writer
+    description: Generate 5 Twitter/X posts from the article
+    depends_on:
+      - write
+    input:
+      mapping:
+        content: $steps.write.output
+        platform: twitter
+        count: 5
+
+  - id: social-linkedin
+    skill: content-writer
+    description: Generate 2 LinkedIn posts from the article
+    depends_on:
+      - write
+    input:
+      mapping:
+        content: $steps.write.output
+        platform: linkedin
+        count: 2
+
+output:
+  research: $steps.research.output
+  article: $steps.write.output
+  twitter_posts: $steps.social-twitter.output
+  linkedin_posts: $steps.social-linkedin.output

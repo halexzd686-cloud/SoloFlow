@@ -1,0 +1,74 @@
+# Content Marketing — 内容营销全流程
+#
+# 主题研究 → 内容策略 → 长文撰写 → 社交媒体分发
+
+name: content-marketing
+version: 1.0.0
+description: >
+  End-to-end content marketing pipeline.
+  Research trending topics → build content strategy → write long-form article → social distribution.
+
+input_schema:
+  product:
+    type: string
+    required: true
+    description: 产品/服务名称
+  target_audience:
+    type: string
+    required: true
+    description: 目标受众描述
+  channels:
+    type: string
+    required: false
+    default: "twitter,linkedin"
+    description: 分发渠道（逗号分隔）
+
+steps:
+  # Step 1: 主题研究
+  - id: topic-research
+    skill: market-researcher
+    description: Research trending topics and audience pain points
+    input:
+      mapping:
+        product: $input.product
+        audience: $input.target_audience
+
+  # Step 2: 内容策略
+  - id: content-strategy
+    skill: content-writer
+    description: Build content strategy based on research findings
+    depends_on:
+      - topic-research
+    input:
+      mapping:
+        research: $steps.topic-research.output
+        product: $input.product
+        audience: $input.target_audience
+
+  # Step 3: 撰写长文
+  - id: write-article
+    skill: content-writer
+    description: Write the full article following the strategy
+    depends_on:
+      - content-strategy
+    input:
+      mapping:
+        strategy: $steps.content-strategy.output
+        topic_data: $steps.topic-research.output
+
+  # Step 4: 社交媒体分发
+  - id: social-posts
+    skill: content-writer
+    description: Generate social media posts for each channel
+    depends_on:
+      - write-article
+    input:
+      mapping:
+        article: $steps.write-article.output
+        channels: $input.channels
+
+output:
+  research: $steps.topic-research.output
+  strategy: $steps.content-strategy.output
+  article: $steps.write-article.output
+  social: $steps.social-posts.output

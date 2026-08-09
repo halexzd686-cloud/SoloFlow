@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+.claude/
+.codex/
+.agents/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SoloFlow
+.soloflow/
+*.soloflow
+
+# Testing
+.pytest_cache/
+.pytest-tmp/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.*
+!.env.example
+*.key
+*.pem

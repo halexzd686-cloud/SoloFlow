@@ -1,0 +1,84 @@
+# Competitive Analysis — 竞品分析报告
+#
+# 收集竞品信息 → 功能对比 → SWOT 分析 → 策略建议 → 最终报告
+
+name: competitive-analysis
+version: 1.0.0
+description: >
+  Competitive analysis pipeline.
+  Research competitors → feature comparison → SWOT analysis → strategic recommendations.
+
+input_schema:
+  product:
+    type: string
+    required: true
+    description: 自家产品名称
+  competitors:
+    type: string
+    required: true
+    description: 竞品列表（逗号分隔）
+  market:
+    type: string
+    required: false
+    default: "SaaS"
+    description: 目标市场
+
+steps:
+  # Step 1: 竞品调研（并行）
+  - id: research-competitors
+    skill: market-researcher
+    description: Research each competitor — product, pricing, positioning, strengths
+    input:
+      mapping:
+        competitors: $input.competitors
+        market: $input.market
+
+  # Step 2: 自家产品分析（与 Step 1 并行）
+  - id: research-self
+    skill: market-researcher
+    description: Research our own product positioning and features
+    input:
+      mapping:
+        product: $input.product
+        market: $input.market
+
+  # Step 3: 功能对比矩阵
+  - id: feature-comparison
+    skill: content-writer
+    description: Build feature comparison matrix from research data
+    depends_on:
+      - research-competitors
+      - research-self
+    input:
+      mapping:
+        competitor_data: $steps.research-competitors.output
+        self_data: $steps.research-self.output
+
+  # Step 4: SWOT 分析
+  - id: swot-analysis
+    skill: content-writer
+    description: Conduct SWOT analysis based on comparison
+    depends_on:
+      - feature-comparison
+    input:
+      mapping:
+        comparison: $steps.feature-comparison.output
+        product: $input.product
+
+  # Step 5: 策略建议 + 最终报告
+  - id: final-report
+    skill: content-writer
+    description: Compile final report with strategic recommendations
+    depends_on:
+      - swot-analysis
+    input:
+      mapping:
+        swot: $steps.swot-analysis.output
+        comparison: $steps.feature-comparison.output
+        product: $input.product
+
+output:
+  competitor_research: $steps.research-competitors.output
+  comparison_matrix: $steps.feature-comparison.output
+  swot: $steps.swot-analysis.output
+  final_report: $steps.final-report.output

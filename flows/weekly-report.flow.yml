@@ -1,0 +1,59 @@
+# Weekly Report — 自动化周报生成
+#
+# 收集本周工作 → 分析成果 → 撰写周报 → 优化可读性
+
+name: weekly-report
+version: 1.0.0
+description: >
+  Automated weekly report generator.
+  Collect weekly work items → analyze achievements → write report → polish.
+
+input_schema:
+  team_name:
+    type: string
+    required: true
+    description: 团队名称
+  weekly_items:
+    type: string
+    required: true
+    description: 本周工作项（Markdown 列表或自由文本）
+  goals:
+    type: string
+    required: false
+    description: 本周目标（用于对比完成度）
+
+steps:
+  # Step 1: 分析工作成果
+  - id: analyze
+    skill: market-researcher
+    description: Analyze weekly items — categorize, identify highlights, measure against goals
+    input:
+      mapping:
+        items: $input.weekly_items
+        goals: $input.goals
+        team: $input.team_name
+
+  # Step 2: 撰写周报
+  - id: write-report
+    skill: content-writer
+    description: Write the weekly report in professional format
+    depends_on:
+      - analyze
+    input:
+      mapping:
+        analysis: $steps.analyze.output
+        team: $input.team_name
+
+  # Step 3: 优化可读性
+  - id: polish
+    skill: content-writer
+    description: Polish the report for readability — add highlights, format tables, check tone
+    depends_on:
+      - write-report
+    input:
+      mapping:
+        draft: $steps.write-report.output
+
+output:
+  analysis: $steps.analyze.output
+  report: $steps.polish.output

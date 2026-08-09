@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "soloflow": {
+      "command": "uv",
+      "args": ["run", "sf", "mcp"],
+      "cwd": "E:/outdoor/soloflow"
+    }
+  },
+  "_soloflow_mcp_config": {
+    "auth_token": "",
+    "allowed_tools": [
+      "soloflow_list_skills",
+      "soloflow_get_skill",
+      "soloflow_list_flows",
+      "soloflow_list_agents",
+      "soloflow_validate_skill",
+      "soloflow_validate_flow"
+    ],
+    "_note": "以上配置不是 MCP Client 标准，仅作参考。实际安全配置位于 .soloflow/mcp.json 或环境变量 SOLOFLOW_MCP_TOKEN / SOLOFLOW_MCP_ALLOWED_TOOLS"
+  }
+}

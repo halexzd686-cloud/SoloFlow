@@ -1,0 +1,75 @@
+# Onboarding Docs — 新人入职文档生成
+#
+# 项目扫描 → 架构文档 → 快速开始指南 → FAQ
+
+name: onboarding-docs
+version: 1.0.0
+description: >
+  Onboarding documentation generator for new team members.
+  Project scan → architecture overview → quickstart guide → FAQ.
+
+input_schema:
+  project_name:
+    type: string
+    required: true
+    description: 项目名称
+  repo_path:
+    type: string
+    required: true
+    description: 代码仓库路径
+  tech_stack:
+    type: string
+    required: false
+    description: 技术栈（如不提供则自动检测）
+
+steps:
+  # Step 1: 项目扫描
+  - id: project-scan
+    skill: code-reviewer
+    description: Scan project structure, identify key modules, tech stack, and entry points
+    input:
+      mapping:
+        project: $input.project_name
+        repo: $input.repo_path
+
+  # Step 2: 架构文档（依赖 Step 1）
+  - id: architecture-doc
+    skill: content-writer
+    description: Write architecture overview — system design, data flow, module relationships
+    depends_on:
+      - project-scan
+    input:
+      mapping:
+        scan: $steps.project-scan.output
+        project: $input.project_name
+        tech_stack: $input.tech_stack
+
+  # Step 3: 快速开始指南（依赖 Step 1）
+  - id: quickstart-guide
+    skill: content-writer
+    description: Write quickstart guide — setup, build, run, common commands
+    depends_on:
+      - project-scan
+    input:
+      mapping:
+        scan: $steps.project-scan.output
+        project: $input.project_name
+
+  # Step 4: FAQ（依赖 Step 2 和 3）
+  - id: faq
+    skill: content-writer
+    description: Generate FAQ from architecture doc and common onboarding questions
+    depends_on:
+      - architecture-doc
+      - quickstart-guide
+    input:
+      mapping:
+        architecture: $steps.architecture-doc.output
+        quickstart: $steps.quickstart-guide.output
+        project: $input.project_name
+
+output:
+  scan: $steps.project-scan.output
+  architecture: $steps.architecture-doc.output
+  quickstart: $steps.quickstart-guide.output
+  faq: $steps.faq.output

@@ -1,0 +1,62 @@
+# Meeting Notes — 会议纪要生成
+#
+# 原始记录 → 提取要点 → 行动项 → 格式化纪要
+
+name: meeting-notes
+version: 1.0.0
+description: >
+  Meeting notes pipeline.
+  Raw transcript → key points extraction → action items → formatted notes.
+
+input_schema:
+  meeting_title:
+    type: string
+    required: true
+    description: 会议标题
+  transcript:
+    type: string
+    required: true
+    description: 会议转录文本或原始笔记
+  attendees:
+    type: string
+    required: false
+    description: 参会人员列表
+
+steps:
+  # Step 1: 提取关键要点
+  - id: extract-points
+    skill: content-writer
+    description: Extract key discussion points and decisions from meeting transcript
+    input:
+      mapping:
+        meeting_title: $input.meeting_title
+        transcript: $input.transcript
+
+  # Step 2: 提取行动项
+  - id: extract-actions
+    skill: content-writer
+    description: Extract action items with owners and deadlines
+    depends_on:
+      - extract-points
+    input:
+      mapping:
+        points: $steps.extract-points.output
+        attendees: $input.attendees
+
+  # Step 3: 格式化纪要
+  - id: format-notes
+    skill: content-writer
+    description: Format into clean meeting notes with sections
+    depends_on:
+      - extract-actions
+    input:
+      mapping:
+        title: $input.meeting_title
+        points: $steps.extract-points.output
+        actions: $steps.extract-actions.output
+        attendees: $input.attendees
+
+output:
+  key_points: $steps.extract-points.output
+  action_items: $steps.extract-actions.output
+  formatted_notes: $steps.format-notes.output

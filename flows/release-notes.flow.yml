@@ -1,0 +1,66 @@
+# Release Notes — Release Notes 自动生成
+#
+# 变更列表 → 分类整理 → 撰写 → 格式化输出
+
+name: release-notes
+version: 1.0.0
+description: >
+  Automated release notes generator.
+  Changelog → categorize → write → format.
+
+input_schema:
+  version:
+    type: string
+    required: true
+    description: 发布版本号（如 v2.1.0）
+  changes:
+    type: string
+    required: true
+    description: 变更列表（commit log、PR 列表或自由文本）
+  repo_name:
+    type: string
+    required: false
+    description: 项目名称
+  audience:
+    type: string
+    required: false
+    default: "developers"
+    description: 目标读者（developers / end-users / both）
+
+steps:
+  # Step 1: 分类变更
+  - id: categorize
+    skill: code-reviewer
+    description: Categorize changes — features, bug fixes, breaking changes, security, docs
+    input:
+      mapping:
+        changes: $input.changes
+        version: $input.version
+
+  # Step 2: 撰写 Release Notes
+  - id: write-notes
+    skill: content-writer
+    description: Write release notes in clear, structured format
+    depends_on:
+      - categorize
+    input:
+      mapping:
+        categories: $steps.categorize.output
+        version: $input.version
+        repo: $input.repo_name
+        audience: $input.audience
+
+  # Step 3: 生成升级指南（如有 breaking changes）
+  - id: migration-guide
+    skill: content-writer
+    description: Generate migration guide if breaking changes exist
+    depends_on:
+      - categorize
+    input:
+      mapping:
+        changes: $steps.categorize.output
+        version: $input.version
+
+output:
+  release_notes: $steps.write-notes.output
+  migration_guide: $steps.migration-guide.output
