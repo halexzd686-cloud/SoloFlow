@@ -18,6 +18,7 @@
 - 两个 Heartbeat Agent 已并发完成各 3 次真实 DeepSeek 调用，结果持久化和停止清理均通过。
 - Heartbeat 使用 PID 与进程命令行联合校验，PID 复用探针和真实 daemon 身份链路均已通过。
 - Heartbeat 500 周期加速测试完成 445 次成功和 55 次注入失败，daemon 持续运行且指标一致。
+- Heartbeat 真实 DeepSeek 加速 soak 持续约 67 分钟，2 分钟间隔共完成 33/33 次调用；成功率 100%，无连续失败、空响应、截断输出或日志错误，停止状态与 PID 清理通过。
 - DeepSeek V4 Flash 已完成真实 Skill、Agent、Flow 调用，输出、状态和 token usage 均已验证。
 - GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
@@ -26,7 +27,6 @@
 
 - 真实 OpenAI、Anthropic 调用和 DeepSeek 限流场景（DeepSeek 正常调用、超时与鉴权失败已验证）。
 - Cursor 和 Codex 的真实 MCP 客户端连接（Claude Code 已验证）。
-- Heartbeat 长时间运行（真实 LLM 触发、多 Agent 并发和 PID 复用防护已验证）。
 - PyPI 发布和第三方用户的干净安装反馈。
 
 ## Known limitations

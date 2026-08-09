@@ -9,7 +9,7 @@
 
 SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
 
-当前版本为 `1.0.0rc3`。本地 244 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install 及双 Agent Heartbeat 真实触发均已通过；其他 LLM 供应商和 Heartbeat 真实环境 soak 仍待最终确认，详见[项目状态](STATUS.md)。
+当前版本为 `1.0.0rc3`。本地 244 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install，以及 Heartbeat 故障注入与真实环境加速 soak 均已通过；其他 LLM 供应商仍待最终确认，详见[项目状态](STATUS.md)。
 
 ## 它解决什么问题
 
@@ -107,7 +107,7 @@ SoloFlow 是 Prompt 与 LLM 工作流编排工具，不是完整的自主 Agent 
 - Agent 没有自主规划循环、长期记忆和后台分布式执行能力。
 - Flow 步骤主要传递字符串输出，暂不支持条件节点、人工审批和 fallback model。
 - Registry 暂无签名、checksum 和 commit SHA lockfile。
-- Heartbeat 长时间稳定性在正式 `v1.0.0` 前仍需验证。
+- Heartbeat 已通过单机加速稳定性验收；跨机器、跨网络环境的长期运行仍需社区反馈。
 
 ## MCP 接入
 
@@ -162,7 +162,7 @@ uv build
 - [x] Heartbeat 双 Agent 并发真实 LLM 触发与状态持久化
 - [x] Heartbeat PID 复用识别与无关进程保护
 - [x] Heartbeat 500 周期超时、连接、限流和空响应故障注入
-- [ ] Heartbeat 长时间稳定性验证
+- [x] Heartbeat 67 分钟真实 DeepSeek 加速稳定性验收（33/33 次成功）
 - [ ] `v1.0.0` 与 PyPI 发布
 
 ## 参与项目
