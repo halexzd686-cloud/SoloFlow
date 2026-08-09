@@ -546,44 +546,20 @@ def _validate_input_schema(input_schema: dict[str, Any]) -> list[str]:
     return issues
 
 
-def run_flow(
+def _execute_flow(
     flow: FlowDefinition,
-    inputs: dict[str, Any] | None = None,
-    max_parallel: int = MAX_PARALLEL,
-    dry_run: bool = False,
-    stream: bool = False,
-    _resume_context: dict = None,
-    _resume_skip: set = None,
-    _run_id: str = None,
-    _attempt: int = 1,
+    inputs: dict[str, Any],
+    max_parallel: int,
+    dry_run: bool,
+    stream: bool,
+    *,
+    context: dict[str, Any],
+    resume_skip: set[str],
+    run_id: str,
+    attempt: int,
 ) -> FlowResult:
-    """执行 Flow。
+    """Execute a prepared new or resumed Flow run."""
 
-    这是整个编排引擎的入口：
-    1. 校验输入参数（如定义了 input_schema）
-    2. 拓扑排序确定执行层级
-    3. 逐层执行：同层步骤并发，跨层串行
-    4. 失败恢复：依赖失败步骤的后续步骤自动跳过
-    5. 聚合结果并持久化到 .soloflow/runs/
-
-    Args:
-        flow: Flow 定义。
-        inputs: 用户提供的输入参数。
-        max_parallel: 最大并行步骤数。
-        dry_run: 仅显示计划不执行。
-        stream: 流式输出模式（逐 token 实时打印）。
-        _resume_context: 内部参数——从断点恢复时预填充的上下文。
-        _resume_skip: 内部参数——恢复时需跳过的已完成步骤 ID 集合。
-        _run_id: 内部参数——恢复时复用原 run ID（BUG-FLOW-002），
-                 默认 None 生成新 ID。
-        _attempt: 内部参数——第几次执行（恢复一次 +1）。
-
-    Returns:
-        FlowResult 包含所有步骤的执行结果。
-
-    Raises:
-        ValueError: max_parallel 不是正整数（P1-002，立即失败而非死锁）。
-    """
     # P1-002/P1(收尾): 校验 max_parallel 必须是正整数。
     # - max_parallel=0 会创建零容量 semaphore 导致步骤永久等待（死锁）。
     # - 负数/浮点数/字符串会抛意外异常。
@@ -602,10 +578,9 @@ def run_flow(
         )
         max_parallel = 1
 
-    run_id = _run_id or f"run-{uuid.uuid4().hex[:12]}"
     result = FlowResult(flow_name=flow.name, run_id=run_id, status="running")
 
-    user_inputs = inputs or {}
+    user_inputs = inputs
 
     # ── 输入校验 ──
     if flow.input_schema:
@@ -623,23 +598,6 @@ def run_flow(
             return result
         for msg in info:
             console.print(f"[dim]{msg}[/dim]")
-
-    # 构建上下文（合并 input_schema 的默认值）
-    if _resume_context:
-        # 断点恢复：使用保存的上下文
-        context = _resume_context
-    else:
-        context = {"input": {}, "steps": {}}
-        # 先注入 schema 默认值
-        if flow.input_schema:
-            for key, spec in flow.input_schema.items():
-                if isinstance(spec, dict) and "default" in spec:
-                    context["input"][key] = spec["default"]
-        # 再覆盖用户输入
-        context["input"].update(user_inputs)
-
-    # 断点恢复时需跳过的步骤
-    resume_skip = _resume_skip or set()
 
     # 顶层代码中运行时的 loop 引用
     import asyncio as _asyncio_mod
@@ -719,7 +677,7 @@ def run_flow(
             result.total_tokens,
             step_outputs=step_outputs,
             inputs=user_inputs,
-            attempt=_attempt,
+            attempt=attempt,
             outputs=result.outputs,
             attempt_tokens=attempt_tokens_acc["n"],
         )
@@ -927,6 +885,43 @@ def run_flow(
     return result
 
 
+def _new_flow_context(flow: FlowDefinition, inputs: dict[str, Any]) -> dict[str, Any]:
+    """Build a clean context for a new run, including schema defaults."""
+    context: dict[str, Any] = {"input": {}, "steps": {}}
+    if flow.input_schema:
+        for key, spec in flow.input_schema.items():
+            if isinstance(spec, dict) and "default" in spec:
+                context["input"][key] = spec["default"]
+    context["input"].update(inputs)
+    return context
+
+
+def run_flow(
+    flow: FlowDefinition,
+    inputs: dict[str, Any] | None = None,
+    max_parallel: int = MAX_PARALLEL,
+    dry_run: bool = False,
+    stream: bool = False,
+) -> FlowResult:
+    """Start a new Flow run.
+
+    Resume state is intentionally handled only by :func:`resume_flow`, keeping
+    this public entry point limited to user-facing execution options.
+    """
+    user_inputs = inputs or {}
+    return _execute_flow(
+        flow,
+        user_inputs,
+        max_parallel,
+        dry_run,
+        stream,
+        context=_new_flow_context(flow, user_inputs),
+        resume_skip=set(),
+        run_id=f"run-{uuid.uuid4().hex[:12]}",
+        attempt=1,
+    )
+
+
 def resume_flow(
     run_id: str, max_parallel: int = MAX_PARALLEL, dry_run: bool = False, stream: bool = False
 ) -> FlowResult | None:
@@ -1008,16 +1003,16 @@ def resume_flow(
         "_resume_tokens": old_tokens,
     }
 
-    return run_flow(
-        flow=flow,
-        inputs=saved_inputs,
-        max_parallel=max_parallel,
-        dry_run=dry_run,
-        stream=stream,
-        _resume_context=context,
-        _resume_skip=set(completed),
-        _run_id=run_id,
-        _attempt=prev_attempt + 1,
+    return _execute_flow(
+        flow,
+        saved_inputs,
+        max_parallel,
+        dry_run,
+        stream,
+        context=context,
+        resume_skip=set(completed),
+        run_id=run_id,
+        attempt=prev_attempt + 1,
     )
 
 
