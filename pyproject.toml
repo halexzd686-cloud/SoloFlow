@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "soloflow"
 # 版本单一来源: soloflow/__init__.py 的 __version__（hatch 动态读取）
 dynamic = ["version"]
-description = "文件驱动的 AI Skill 管理系统 —— 封装、复用、迭代你的 AI 技能"
+description = "文件驱动的 AI Skill 工具 —— 保存工作方法，按步骤自动执行"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.12"

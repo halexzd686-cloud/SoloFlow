@@ -1,55 +1,50 @@
 # SoloFlow Project Status
 
-> Version: 1.0.1 | Stage: Stable | Updated: 2026-08-09
+> Version: 2.0.0 candidate | Branch: `dev` | Updated: 2026-08-10 | Not released
+
+## Current scope
+
+- 核心概念只有 Skill、Flow 和可选 Agent。
+- 新手推荐入口是 `sf run <skill> <task>`。
+- 模型调用使用 `httpx` 直连 DeepSeek OpenAI 兼容接口；白名单只允许 `deepseek/deepseek-v4-flash`。
+- MCP 作为高级入口保留，不进入 README 主流程；它复用同一 Core 与 Runner。
 
 ## Verified locally
 
-- Windows 11, Python 3.12.13。
-- `251 passed`。
-- Ruff check 通过，50 个 Python 文件格式检查通过。
-- wheel 和 sdist 可构建。
-- wheel 在全新虚拟环境安装成功。
-- 离开源码目录后可发现 4 个 Skill、2 个 Agent、8 个 Flow，并可 dry-run `blog-pipeline`。
-- MCP stdio、Registry 本地 Git 闭环和 TUI 无头测试由自动化测试覆盖。
-- Claude Code 2.1.201 已完成真实 MCP 连接，并成功调用 `soloflow_list_skills`。
-- GitHub `skills-registry` 已完成真实 update、search、严格版本校验和隔离安装。
-- `code-reviewer` 已通过 SoloFlow publish 命令创建 PR、合并并从远程 Registry 重新安装。
-- Heartbeat daemon 已完成真实启动、探活、重复启动保护、中断恢复、停止和 PID 清理。
-- 两个 Heartbeat Agent 已并发完成各 3 次真实 DeepSeek 调用，结果持久化和停止清理均通过。
-- Heartbeat 使用 PID 与进程命令行联合校验，PID 复用探针和真实 daemon 身份链路均已通过。
-- Heartbeat 500 周期加速测试完成 445 次成功和 55 次注入失败，daemon 持续运行且指标一致。
-- Heartbeat 真实 DeepSeek 加速 soak 持续约 67 分钟，2 分钟间隔共完成 33/33 次调用；成功率 100%，无连续失败、空响应、截断输出或日志错误，停止状态与 PID 清理通过。
-- DeepSeek V4 Flash 已完成真实 Skill、Agent、Flow 调用，输出、状态和 token usage 均已验证。
-- v1.0.1 候选版已将内置 Skill、Agent 和缺省 LLM 配置统一为 DeepSeek，README 命令不再隐式要求 Anthropic Key。
-- GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
-- GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
-- CLI 可安全加载当前工作目录 `.env`，已有进程环境变量优先且不会搜索父目录。
-- PyPI RC5 与正式版 v1.0.0 均通过 GitHub OIDC Trusted Publishing 发布；正式版 GitHub/PyPI SHA256 一致，官方索引元数据、wheel/sdist、数字发布证明及全新环境安装均验证通过。
-- v1.0.1 已通过 GitHub OIDC Trusted Publishing 发布；官方 PyPI 干净安装、DeepSeek-only 配置、非指定调用目标提前拒绝、wheel/sdist 数字证明及 GitHub/PyPI SHA256 一致性均验证通过。
+- Windows 11、Python 3.12.13。
+- `164 passed`。
+- Ruff check 通过，34 个 Python 文件 format check 通过。
+- wheel 与 sdist 构建通过。
+- wheel 在新建隔离环境安装成功，共安装 24 个包；离开源码目录后可发现内置资产并执行 `sf run content-writer "测试主题" --dry-run`。
+- README 48 行；`sf --help` 顶层命令 7 个。
+- `soloflow/` Python 代码 3,476 行，无空包、无 `core → cli` 反向导入。
+- Skill、Flow、Agent 共用项目 → 用户 → 内置的资产发现顺序。
+- Prompt 与模型调用统一进入 Runner；生产代码只有 Runner 调用 `chat()`。
+- 非白名单的 `base_url`、`api_key_env` 或 `model` 会在读取密钥和创建 HTTP 客户端前被拒绝。
+- `litellm` 与 `textual` 已从项目依赖和 `uv.lock` 移除。
 
-## Provider support scope
+## Removed in v2
 
-- `deepseek/deepseek-v4-flash` 是当前唯一允许的调用目标，真实 Skill、Agent、Flow、错误处理和 Heartbeat 链路均已验收。
-- 其他 provider 或 model 会在读取 API Key 和发起网络请求前被拒绝，避免意外产生其他供应商费用。
+- Heartbeat daemon 与相关 CLI。
+- 远程 Registry 与 publish/install/update 工作流。
+- Textual dashboard。
+- `skill iter` / auto_iter。
+- Skill 依赖版本小语言、Skill `depends_on` 与迭代元数据。
+- 空的 `storage/`、`utils/` 包。
 
-## v1.0.1 release changes
+## Not yet verified for this candidate
 
-- README 已按“概念解释 → dry-run → 配置 → 真实 Skill → 完整 Flow”重构。
-- `docs/tutorial.md` 新增 TrailLight Mini 虚拟案例、预期行为、恢复教学和常见问题。
-- 发布提交已通过 Windows/Linux × Python 3.12/3.13 CI 和 clean-wheel smoke，GitHub Release 与 PyPI 正式版均已发布。
-
-## Not yet externally verified
-
-- DeepSeek 供应商真实限流场景（正常调用、超时、鉴权失败及注入限流恢复已验证）。
-- Cursor 和 Codex 的真实 MCP 客户端连接（Claude Code 已验证）。
-- 第三方用户的干净安装反馈。
+- 重构后的 `httpx` 客户端尚未执行付费的真实 DeepSeek 请求；协议、流式 SSE、usage、重试、认证失败和提前拒绝均由无网络 mock 测试覆盖。
+- GitHub Actions 的 Windows/Linux × Python 3.12/3.13 矩阵尚未对 `dev` 候选提交运行。
+- v2.0.0 尚未合并 `main`、创建 tag、GitHub Release 或发布到 PyPI。
 
 ## Known limitations
 
-- Runner 不自动提供浏览器、搜索、文件系统和其他外部工具。
-- Flow 暂无条件节点、人工审批、fallback model、持久化队列和分布式执行。
-- Registry 暂无签名、checksum 和 commit SHA lockfile。
+- Runner 不自动提供浏览器、搜索、文件系统或其他外部工具。
+- Flow 暂无条件节点、人工审批、fallback model、持久化队列或分布式执行。
+- 当前只允许 DeepSeek V4 Flash；其他模型不在 v2.0.0 范围内。
 - Windows GBK 终端可能出现中文显示问题。
-- LiteLLM 及其依赖体积较大。
 
-未经真实验证的事项不会在 README 或 Release 中标记为完成。
+## Release gate
+
+在项目所有者确认全部阶段验收结果之前，不合并 `main`、不打 tag、不发布 GitHub Release 或 PyPI。
