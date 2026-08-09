@@ -9,7 +9,7 @@
 
 SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
 
-当前版本为 `1.0.0rc5`。本地 248 项测试、GitHub Actions 跨平台矩阵、wheel 构建、PyPI Trusted Publishing 与官方索引干净安装、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install，以及 Heartbeat 故障注入与真实环境加速 soak 均已通过；其他 LLM 供应商仍待最终确认，详见[项目状态](STATUS.md)。
+当前版本为 `1.0.0rc5`。本地 248 项测试、GitHub Actions 跨平台矩阵、wheel 构建、PyPI Trusted Publishing 与官方索引干净安装、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install，以及 Heartbeat 故障注入与真实环境加速 soak 均已通过。v1.0 以 DeepSeek 为官方验证和推荐供应商；OpenAI、Anthropic 保留兼容入口，但在真实验证前视为实验性支持。详见[项目状态](STATUS.md)。
 
 ## 它解决什么问题
 
@@ -90,6 +90,16 @@ uv run sf skill run content-writer "AI Agent 落地"
 
 不要把 API Key 写入 Skill、Flow、MCP 配置或提交到 Git；`.env` 已默认加入忽略规则。
 
+## 模型供应商支持
+
+| 供应商 | v1.0 状态 | 说明 |
+| --- | --- | --- |
+| DeepSeek | 官方验证、推荐 | Skill、Agent、Flow、重试与 Heartbeat 真实调用均已验收 |
+| OpenAI | 实验性兼容 | 保留 LiteLLM 接入与环境变量支持，尚未进行付费真实调用 |
+| Anthropic | 实验性兼容 | 保留 LiteLLM 接入与环境变量支持，尚未进行付费真实调用 |
+
+实验性兼容表示代码路径保留且有 mock 测试覆盖，不代表已经完成供应商端到端验收。
+
 ## 主要能力
 
 - Skill：创建、校验、列表、执行、多版本生成和自动迭代。
@@ -162,7 +172,7 @@ uv build
 - [x] Flow 并发、失败传播、运行持久化和恢复
 - [x] wheel 内置资产与源码目录外安装 smoke
 - [x] DeepSeek 真实 Skill、Agent、Flow 端到端与 token usage 验证
-- [ ] OpenAI、Anthropic 等其他 LLM 供应商端到端验证
+- [ ] v1.1：OpenAI、Anthropic 等其他 LLM 供应商端到端验证
 - [x] Claude Code 真实 MCP 客户端连接与工具调用验证
 - [x] 远程社区 Registry update、search、版本校验与 install
 - [x] 远程社区 Registry publish/PR 闭环

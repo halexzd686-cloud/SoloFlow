@@ -37,15 +37,13 @@ uv run sf flow run blog-pipeline -i topic="测试主题" --dry-run
 
 ## Configure a provider
 
-可以使用 Shell 环境变量提供凭据。PowerShell 示例：
+v1.0 推荐并真实验证 DeepSeek。可以使用 Shell 环境变量提供凭据，PowerShell 示例：
 
 ```powershell
-$env:OPENAI_API_KEY = "<your-key>"
-$env:ANTHROPIC_API_KEY = "<your-key>"
 $env:DEEPSEEK_API_KEY = "<your-key>"
 ```
 
-只需要配置实际使用的供应商。Skill 中的 `provider` 和 `model` 决定调用目标。
+Skill 中的 `provider` 和 `model` 决定调用目标。OpenAI 与 Anthropic 的兼容入口仍然保留，但在完成真实端到端验证前属于实验性支持；v1.0 不要求配置这两类密钥。
 
 也可以使用项目本地 `.env`：
 

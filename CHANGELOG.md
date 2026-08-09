@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### Changed
+
+- v1.0 明确以 DeepSeek 为官方验证和推荐供应商；OpenAI、Anthropic 保留兼容入口并标记为实验性支持，真实端到端验证移入 v1.1 Roadmap。
+
 ## 1.0.0rc5 - 2026-08-09
 
 ### Changed

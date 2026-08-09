@@ -25,9 +25,15 @@
 - CLI 可安全加载当前工作目录 `.env`，已有进程环境变量优先且不会搜索父目录。
 - PyPI RC5 已通过 GitHub OIDC Trusted Publishing 发布；官方索引元数据、wheel/sdist、发布证明及全新环境安装均验证通过。
 
+## Provider support scope
+
+- DeepSeek 是 v1.0 官方验证和推荐供应商，真实 Skill、Agent、Flow、错误处理和 Heartbeat 链路均已验收。
+- OpenAI 与 Anthropic 保留 LiteLLM 兼容入口和 mock 回归覆盖，但尚未进行付费真实调用，v1.0 将其标记为实验性支持。
+- OpenAI 与 Anthropic 的真实端到端验证移入 v1.1 Roadmap，不作为 v1.0 发布阻塞项。
+
 ## Not yet externally verified
 
-- 真实 OpenAI、Anthropic 调用和 DeepSeek 限流场景（DeepSeek 正常调用、超时与鉴权失败已验证）。
+- DeepSeek 供应商真实限流场景（正常调用、超时、鉴权失败及注入限流恢复已验证）。
 - Cursor 和 Codex 的真实 MCP 客户端连接（Claude Code 已验证）。
 - 第三方用户的干净安装反馈。
 
