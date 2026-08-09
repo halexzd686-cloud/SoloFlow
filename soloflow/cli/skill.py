@@ -289,7 +289,6 @@ def show(
         )
         console.print(f"  Rules: {len(skill.rules)} 条")
         console.print(f"  Examples: {len(skill.examples)} 个")
-        console.print(f"  Dependencies: {skill.dependencies or '无'}")
         console.print(f"  Body: {len(skill.body)} 字符")
 
 

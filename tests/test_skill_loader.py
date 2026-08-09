@@ -15,7 +15,6 @@ from soloflow.models.skill import (
     SkillConfig,
     SkillExample,
     SkillFile,
-    SkillIteration,
     SkillMeta,
     SkillTest,
 )
@@ -74,13 +73,12 @@ def test_load_and_save_roundtrip():
         assert "测试正文" in loaded.body
 
 
-def test_roundtrip_preserves_examples_tests_changelog():
+def test_roundtrip_preserves_examples_tests_and_extensions():
     """BUG-SKILL-001 回归测试：load → save → load 必须无损。
 
     覆盖此前会静默丢失的字段:
     - examples
     - tests
-    - iteration.changelog
     - 未知 frontmatter 扩展字段
     """
     skill = SkillFile(
@@ -96,16 +94,6 @@ def test_roundtrip_preserves_examples_tests_changelog():
             SkillTest(check="检查项", expected="期望结果"),
         ],
         body="## Instructions\n\n正文。",
-        iteration=SkillIteration(
-            version=3,
-            score=0.85,
-            evaluated_at="2026-08-08T12:00:00",
-            changelog=[
-                "v1: 评分 0.70, 修复 2 个问题",
-                "v2: 评分 0.80, 修复 1 个问题",
-                "v3: 评分 0.85, 修复 1 个问题",
-            ],
-        ),
         extra_frontmatter={"custom_meta": {"foo": "bar"}, "legacy_flag": True},
     )
 
@@ -131,12 +119,6 @@ def test_roundtrip_preserves_examples_tests_changelog():
         assert loaded.tests[0].check == "检查项"
         assert loaded.tests[0].expected == "期望结果"
 
-        # iteration 完整保留（含 changelog）
-        assert loaded.iteration.version == 3
-        assert loaded.iteration.score == 0.85
-        assert loaded.iteration.changelog == skill.iteration.changelog
-        assert len(loaded.iteration.changelog) == 3
-
         # 未知扩展字段保留
         assert loaded.extra_frontmatter == {"custom_meta": {"foo": "bar"}, "legacy_flag": True}
 
@@ -145,7 +127,6 @@ def test_roundtrip_preserves_examples_tests_changelog():
         loaded2 = load_skill(saved2)
         assert loaded2.examples == loaded.examples
         assert loaded2.tests == loaded.tests
-        assert loaded2.iteration.changelog == loaded.iteration.changelog
         assert loaded2.extra_frontmatter == loaded.extra_frontmatter
 
 
