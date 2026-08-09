@@ -15,6 +15,7 @@
 
 - CI wheel smoke 改为离开源码目录验证内置资产。
 - Skill、Agent、Flow 统一采用项目/用户资产优先、包内资产回退的发现顺序。
+- GitHub Actions 升级到当前 Node.js 24 运行时版本。
 
 ## 0.9.1 - 2026-08-08
 

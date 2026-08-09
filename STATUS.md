@@ -11,10 +11,11 @@
 - wheel 在全新虚拟环境安装成功。
 - 离开源码目录后可发现 4 个 Skill、2 个 Agent、8 个 Flow，并可 dry-run `blog-pipeline`。
 - MCP stdio、Registry 本地 Git 闭环和 TUI 无头测试由自动化测试覆盖。
+- GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
+- GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
 
 ## Not yet externally verified
 
-- GitHub Actions Windows/Linux 与 Python 3.12/3.13 矩阵。
 - 真实 OpenAI、Anthropic、DeepSeek 调用及限流、超时和 token usage。
 - Claude Code、Cursor 或 Codex 的真实 MCP 客户端连接。
 - 真实远程 Registry 的 publish、PR、install 和 update 闭环。
