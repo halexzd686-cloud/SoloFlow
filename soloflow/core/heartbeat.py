@@ -107,6 +107,7 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
     interval_sec = _parse_interval(agent.heartbeat.interval)
 
     state = _load_heartbeat_state(name) or {}
+    started_at = state.get("started_at") or datetime.now(UTC).isoformat()
     run_count = state.get("run_count", 0)
     attempt_count = state.get("attempt_count", run_count)
     failure_count = state.get("failure_count", 0)
@@ -165,6 +166,7 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
                 {
                     "agent_name": name,
                     "interval": agent.heartbeat.interval,
+                    "started_at": started_at,
                     "run_count": run_count,
                     "attempt_count": attempt_count,
                     "failure_count": failure_count,
@@ -188,6 +190,7 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
                 {
                     "agent_name": name,
                     "interval": agent.heartbeat.interval,
+                    "started_at": started_at,
                     "run_count": run_count,
                     "attempt_count": attempt_count,
                     "failure_count": failure_count,
@@ -212,6 +215,7 @@ async def _run_heartbeat_loop(agent: AgentDefinition, daemon: bool = False) -> N
                 {
                     "agent_name": name,
                     "interval": agent.heartbeat.interval,
+                    "started_at": started_at,
                     "run_count": run_count,
                     "attempt_count": attempt_count,
                     "failure_count": failure_count,

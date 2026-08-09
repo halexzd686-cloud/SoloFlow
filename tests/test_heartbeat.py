@@ -362,6 +362,7 @@ def test_heartbeat_500_cycle_fault_injection(monkeypatch, tmp_path):
     state = hb._load_heartbeat_state(agent.name)
     assert state is not None
     assert state["status"] == "stopped"
+    assert state["started_at"]
     assert state["attempt_count"] == total_attempts
     assert state["failure_count"] == len(expected_failures)
     assert state["run_count"] == total_attempts - len(expected_failures)
