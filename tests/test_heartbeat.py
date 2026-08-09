@@ -3,6 +3,7 @@
 from soloflow.core.heartbeat import (
     _delete_heartbeat_state,
     _format_interval,
+    _is_heartbeat_process,
     _is_process_running,
     _load_heartbeat_state,
     _parse_interval,
@@ -120,6 +121,48 @@ def test_is_process_running_child_process_lifecycle():
         proc.wait(timeout=10)
     # 进程已退出，探活必须返回 False（且不抛异常、不误杀任何进程）
     assert _is_process_running(proc.pid) is False
+
+
+def test_heartbeat_process_identity_rejects_reused_pid(monkeypatch):
+    """存活 PID 若属于无关进程，不得被当作 Heartbeat daemon。"""
+    from soloflow.core import heartbeat as hb
+
+    monkeypatch.setattr(hb, "_is_process_running", lambda pid: True)
+    monkeypatch.setattr(
+        hb,
+        "_get_process_command_line",
+        lambda pid: "python -c import time; time.sleep(60)",
+    )
+
+    assert _is_heartbeat_process("content-editor", 12345) is False
+
+
+def test_heartbeat_process_identity_accepts_matching_daemon(monkeypatch):
+    """命令行同时包含 Heartbeat 入口和 Agent 名称时才确认身份。"""
+    from soloflow.core import heartbeat as hb
+
+    monkeypatch.setattr(hb, "_is_process_running", lambda pid: True)
+    monkeypatch.setattr(
+        hb,
+        "_get_process_command_line",
+        lambda pid: (
+            "python -c from soloflow.core.heartbeat import _run_heartbeat_loop; "
+            "agent = _load_agent('content-editor')"
+        ),
+    )
+
+    assert _is_heartbeat_process("content-editor", 12345) is True
+    assert _is_heartbeat_process("code-guardian", 12345) is False
+
+
+def test_heartbeat_process_identity_falls_back_conservatively(monkeypatch):
+    """无法读取命令行时保持保守行为，避免重复 daemon 或误杀。"""
+    from soloflow.core import heartbeat as hb
+
+    monkeypatch.setattr(hb, "_is_process_running", lambda pid: True)
+    monkeypatch.setattr(hb, "_get_process_command_line", lambda pid: None)
+
+    assert _is_heartbeat_process("content-editor", 12345) is True
 
 
 # ── 新增测试: 心跳状态持久化 ──

@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### Verification
+
+- DeepSeek 真实超时返回可重试错误，假密钥鉴权失败不会重试。
+- 两个 Heartbeat Agent 并发完成各 3 次真实 DeepSeek 调用，并通过状态持久化、结果标记与 PID 清理验收。
+- Heartbeat PID 复用探针与真实 daemon 身份识别、重复启动保护和安全停止均已通过。
+
+### Fixed
+
+- Heartbeat 探活同时校验 PID 对应的进程命令行和 Agent 名称，避免 PID 复用导致误报或误杀无关进程。
+
 ## 1.0.0rc2 - 2026-08-09
 
 ### Fixed

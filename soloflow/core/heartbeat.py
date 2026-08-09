@@ -231,6 +231,69 @@ def _is_process_running(pid: int) -> bool:
         return False
 
 
+def _get_process_command_line(pid: int) -> str | None:
+    """Best-effort read of a process command line without adding psutil.
+
+    PID existence alone is insufficient because operating systems reuse PIDs.
+    The command line lets Heartbeat distinguish its Python child from an
+    unrelated process that later inherited the same numeric PID.
+    """
+    import subprocess
+
+    try:
+        if sys.platform == "win32":
+            command = (
+                f'$p = Get-CimInstance Win32_Process -Filter "ProcessId = {int(pid)}"; '
+                "if ($p) { [Console]::Out.Write($p.CommandLine) }"
+            )
+            kwargs = {
+                "capture_output": True,
+                "text": True,
+                "timeout": 5,
+            }
+            if hasattr(subprocess, "CREATE_NO_WINDOW"):
+                kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+                **kwargs,
+            )
+            return result.stdout.strip() if result.returncode == 0 and result.stdout else None
+
+        proc_cmdline = Path(f"/proc/{pid}/cmdline")
+        if proc_cmdline.is_file():
+            raw = proc_cmdline.read_bytes()
+            return raw.replace(b"\0", b" ").decode(errors="replace").strip() or None
+
+        result = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return result.stdout.strip() if result.returncode == 0 and result.stdout else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _is_heartbeat_process(name: str, pid: int) -> bool:
+    """Return True only when PID belongs to this Agent's Heartbeat child.
+
+    If command-line inspection is unavailable, preserve the conservative old
+    behavior and treat a live PID as active. This avoids spawning duplicates or
+    killing a process whose identity cannot be established.
+    """
+    if not _is_process_running(pid):
+        return False
+    command_line = _get_process_command_line(pid)
+    if command_line is None:
+        return True
+    return (
+        "soloflow.core.heartbeat" in command_line
+        and "_run_heartbeat_loop" in command_line
+        and name in command_line
+    )
+
+
 def _is_process_running_windows(pid: int) -> bool:
     """Windows 专用探活：OpenProcess + GetExitCodeProcess（只读，不杀进程）。"""
     import ctypes
@@ -330,7 +393,7 @@ def start_heartbeat(agent: AgentDefinition, daemon: bool = False) -> bool:
     # 检查是否已在运行（daemon 模式通过 PID 文件）
     if daemon:
         existing_pid = _read_pid(name)
-        if existing_pid and _is_process_running(existing_pid):
+        if existing_pid and _is_heartbeat_process(name, existing_pid):
             console.print(f"[yellow]Agent '{name}' 心跳已在运行中 (PID: {existing_pid})[/yellow]")
             return False
     else:
@@ -477,7 +540,7 @@ def stop_heartbeat(name: str) -> bool:
 
     # 尝试通过 PID 文件停止 daemon 进程
     pid = _read_pid(name)
-    if pid and _is_process_running(pid):
+    if pid and _is_heartbeat_process(name, pid):
         try:
             if sys.platform == "win32":
                 os.kill(pid, signal.SIGTERM)
@@ -527,7 +590,7 @@ def resume_heartbeats() -> list[str]:
 
         # 检查进程是否还在运行
         pid = _read_pid(name)
-        if pid and _is_process_running(pid):
+        if pid and _is_heartbeat_process(name, pid):
             console.print(f"[dim]Agent '{name}' 心跳仍在运行 (PID: {pid})[/dim]")
             continue
 
@@ -592,7 +655,7 @@ def list_heartbeats() -> list[dict]:
                 status = "stopped"
                 if state.get("status") == "running":
                     pid = _read_pid(name)
-                    if pid and _is_process_running(pid):
+                    if pid and _is_heartbeat_process(name, pid):
                         status = "running"
                 results.append(
                     {
