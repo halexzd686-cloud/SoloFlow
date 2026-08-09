@@ -1,7 +1,6 @@
 """Agent 子命令 —— sf agent *"""
 
 import json
-from pathlib import Path
 
 import typer
 import yaml
@@ -9,54 +8,12 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from soloflow.core.agent_runner import run_agent
-from soloflow.core.assets import asset_name, find_asset, list_asset_paths
+from soloflow.core.agent_runner import list_agents, load_agent, run_agent, save_agent
 from soloflow.core.skill_loader import find_skill, load_skill
 from soloflow.models.agent import AgentDefinition, AgentSoul
 
 app = typer.Typer(help="Agent 智能体管理", no_args_is_help=True)
 console = Console()
-
-AGENT_CONFIG_DIR = Path("agents")
-
-
-def _load_agent(name: str) -> AgentDefinition:
-    """按名称加载 Agent 定义。"""
-    path = find_asset("agent", name)
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return AgentDefinition(**data)
-
-
-def _save_agent(agent: AgentDefinition, output: str | Path = AGENT_CONFIG_DIR) -> Path:
-    """保存 Agent 定义到文件。"""
-    output_dir = Path(output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    path = output_dir / f"{agent.name}.agent.yml"
-    # exclude_none: 避免 config 的 None 字段（=继承语义）写入 YAML
-    data = agent.model_dump(exclude_defaults=True, exclude_none=True)
-    path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False), encoding="utf-8")
-    return path
-
-
-def _list_agents() -> list[dict]:
-    """列出通过统一资产顺序发现的 Agent。"""
-    results: list[dict] = []
-    for source, path in list_asset_paths("agent"):
-        try:
-            data = yaml.safe_load(path.read_text(encoding="utf-8"))
-            results.append(
-                {
-                    "name": data.get("name", asset_name("agent", path)),
-                    "path": str(path),
-                    "description": data.get("description", ""),
-                    "skills": data.get("skills", []),
-                    "source": source,
-                }
-            )
-        except Exception:
-            continue
-    return results
-
 
 @app.command()
 def create(
@@ -103,7 +60,7 @@ def create(
         console.print(yaml.dump(agent.model_dump(exclude_defaults=True), allow_unicode=True))
         return
 
-    path = _save_agent(agent, output)
+    path = save_agent(agent, output)
     console.print(f"\n[green][OK] Created Agent: {path}[/green]")
     console.print("[green][OK] 验证通过[/green]")
     console.print(f"[dim]Next: sf agent run {name} <task>[/dim]")
@@ -112,7 +69,7 @@ def create(
 @app.command("list")
 def list_cmd():
     """列出所有 Agent。"""
-    agents = _list_agents()
+    agents = list_agents()
     if not agents:
         console.print("[dim]No agents found. Use sf agent create to create one.[/dim]")
         return
@@ -141,7 +98,7 @@ def show(
 ):
     """查看 Agent 详情。"""
     try:
-        agent = _load_agent(name)
+        agent = load_agent(name)
     except FileNotFoundError:
         console.print(f"[red]Agent not found: {name}[/red]")
         raise typer.Exit(1)
@@ -192,7 +149,7 @@ def run(
         sf agent run my-agent "写一篇文章" --stream
     """
     try:
-        agent = _load_agent(agent_name)
+        agent = load_agent(agent_name)
     except FileNotFoundError:
         console.print(f"[red]Agent not found: {agent_name}[/red]")
         raise typer.Exit(1)

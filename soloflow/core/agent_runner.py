@@ -1,13 +1,57 @@
-"""Agent loading and execution on top of the shared Runner."""
+"""Agent discovery, persistence, and execution on top of the shared Runner."""
 
+from pathlib import Path
+
+import yaml
 from rich.console import Console
 
+from soloflow.core.assets import asset_name, find_asset, list_asset_paths
 from soloflow.core.runner import render_prompt, run_prompt_versions
 from soloflow.core.skill_loader import find_skill, load_skill
 from soloflow.models.agent import AgentConfigOverride, AgentDefinition
 from soloflow.models.skill import SkillConfig, SkillFile
 
 console = Console()
+
+
+def load_agent(name: str | Path) -> AgentDefinition:
+    """Load an Agent through the shared asset discovery order."""
+    path = find_asset("agent", name)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return AgentDefinition(**data)
+
+
+def save_agent(agent: AgentDefinition, output: str | Path = "agents") -> Path:
+    """Save an Agent definition in the requested project directory."""
+    output_dir = Path(output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / f"{agent.name}.agent.yml"
+    data = agent.model_dump(exclude_defaults=True, exclude_none=True)
+    path.write_text(
+        yaml.dump(data, allow_unicode=True, default_flow_style=False),
+        encoding="utf-8",
+    )
+    return path
+
+
+def list_agents() -> list[dict]:
+    """List Agents once through the shared asset discovery order."""
+    results: list[dict] = []
+    for source, path in list_asset_paths("agent"):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            results.append(
+                {
+                    "name": data.get("name", asset_name("agent", path)),
+                    "path": str(path),
+                    "description": data.get("description", ""),
+                    "skills": data.get("skills", []),
+                    "source": source,
+                }
+            )
+        except Exception:
+            continue
+    return results
 
 
 def resolve_llm_config(

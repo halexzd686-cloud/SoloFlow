@@ -321,16 +321,16 @@ def test_agent_config_serialization_roundtrip():
 
 def test_builtin_agent_examples_load():
     """GAP-AGENT-003: 内置 Agent 示例可以正常加载。"""
-    from soloflow.cli.agent import _load_agent
+    from soloflow.core.agent_runner import load_agent
 
-    agent = _load_agent("content-editor")
+    agent = load_agent("content-editor")
     assert agent.name == "content-editor"
     assert "content-writer" in agent.skills
     assert agent.soul.personality
     # 全 None config → 继承 Skill
     assert agent.config.model is None
 
-    agent2 = _load_agent("code-guardian")
+    agent2 = load_agent("code-guardian")
     assert agent2.name == "code-guardian"
     assert "code-reviewer" in agent2.skills
     # 显式覆盖生效
@@ -382,13 +382,13 @@ def test_list_agents_includes_builtin_examples(monkeypatch, tmp_path):
     """P2-001 回归: sf agent list 内部列表必须包含 agents/ 内置示例。"""
     import os
 
-    from soloflow.cli.agent import _list_agents
+    from soloflow.core.agent_runner import list_agents
 
     orig = os.getcwd()
     monkeypatch.chdir(tmp_path)  # 空目录，排除 cwd 干扰
     os.chdir(orig)  # 恢复 cwd 以访问项目 agents/ 目录
     try:
-        agents = _list_agents()
+        agents = list_agents()
         names = [a["name"] for a in agents]
         assert "content-editor" in names, "content-editor 应出现在 agent list"
         assert "code-guardian" in names, "code-guardian 应出现在 agent list"
@@ -398,8 +398,7 @@ def test_list_agents_includes_builtin_examples(monkeypatch, tmp_path):
 
 def test_list_agents_dedup_priority(monkeypatch, tmp_path):
     """P2-001: 同名 Agent 出现在多个目录时只保留最高优先级一项。"""
-    from soloflow.cli import agent as agent_cli
-    from soloflow.core import assets
+    from soloflow.core import agent_runner, assets
 
     # 构造: 项目 agents/ 与安装包内置目录存在同名 Agent。
     agents_dir = tmp_path / "agents"
@@ -418,7 +417,7 @@ def test_list_agents_dedup_priority(monkeypatch, tmp_path):
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(assets, "_BUNDLED_ROOT", bundled_root)
-    agents = agent_cli._list_agents()
+    agents = agent_runner.list_agents()
 
     dup = [a for a in agents if a["name"] == "dup-agent"]
     assert len(dup) == 1, "同名 Agent 必须去重"

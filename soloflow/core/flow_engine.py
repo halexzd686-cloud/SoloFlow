@@ -19,7 +19,12 @@ import yaml
 from rich.console import Console
 from rich.panel import Panel
 
-from soloflow.core.agent_runner import load_skills_for_agent, render_agent_prompt
+from soloflow.core.agent_runner import (
+    load_agent,
+    load_skills_for_agent,
+    render_agent_prompt,
+    resolve_llm_config,
+)
 from soloflow.core.runner import execute_prompt, render_skill_prompt
 from soloflow.core.skill_loader import find_skill, load_skill
 from soloflow.models.flow import (
@@ -320,9 +325,7 @@ def _build_step_prompt(step: FlowStep, context: dict) -> str:
 
     if step.agent:
         try:
-            from soloflow.cli.agent import _load_agent
-
-            agent = _load_agent(step.agent)
+            agent = load_agent(step.agent)
             loaded_skills = load_skills_for_agent(agent)
             if loaded_skills:
                 return render_agent_prompt(agent, loaded_skills, task)
@@ -786,11 +789,9 @@ def run_flow(
                 # BUG-AGENT-002 修复: Agent 步骤使用统一的配置解析
                 # （Agent config 覆盖 Skill config，None=继承）
                 try:
-                    from soloflow.cli.agent import _load_agent as _load_agent_def
-                    from soloflow.core.agent_runner import resolve_llm_config
                     from soloflow.models.skill import SkillConfig
 
-                    agent_def = _load_agent_def(step.agent)
+                    agent_def = load_agent(step.agent)
                     fallback = skill_config or SkillConfig()
                     model, provider, temperature, max_tokens_val = resolve_llm_config(
                         agent_def.config, fallback

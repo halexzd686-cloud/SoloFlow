@@ -602,29 +602,17 @@ def _tool_run_flow(args: dict) -> str:
 
 def _tool_list_agents(args: dict) -> str:
     """列出所有 Agent。"""
-    agents_dir = Path(".soloflow/agents")
-    if not agents_dir.is_dir():
+    from soloflow.core.agent_runner import list_agents
+
+    agents = list_agents()
+    if not agents:
         return "没有找到任何 Agent。用 sf agent create <name> 创建一个。"
 
-    import yaml
-
-    lines = []
-    agent_files = sorted(agents_dir.glob("*.agent.y*ml"))
-    lines.append(f"共 {len(agent_files)} 个 Agent:\n")
-
-    for f in agent_files:
-        try:
-            data = yaml.safe_load(f.read_text(encoding="utf-8"))
-            name = data.get("name", f.stem.replace(".agent", ""))
-            desc = data.get("description", "无描述")
-            skills = ", ".join(data.get("skills", [])) or "无"
-            personality = data.get("soul", {}).get("personality", "")[:60]
-            lines.append(f"- **{name}**: {desc[:60]}")
-            lines.append(f"  Skills: {skills}")
-            if personality:
-                lines.append(f"  性格: {personality}")
-        except Exception:
-            lines.append(f"- {f.stem}: 解析失败")
+    lines = [f"共 {len(agents)} 个 Agent:\n"]
+    for agent in agents:
+        lines.append(f"- **{agent['name']}**: {agent['description'][:60] or '无描述'}")
+        lines.append(f"  Skills: {', '.join(agent['skills']) or '无'}")
+        lines.append(f"  Source: {agent['source']}")
 
     return "\n".join(lines)
 
@@ -634,26 +622,11 @@ def _tool_run_agent(args: dict) -> str:
     agent_name = args["agent"]
     task = args["task"]
 
-    import yaml
+    from soloflow.core.agent_runner import load_agent, run_agent
 
-    from soloflow.core.agent_runner import run_agent
-    from soloflow.models.agent import AgentDefinition
-
-    # 加载 Agent 定义
-    search_paths = [
-        Path(f"{agent_name}.agent.yml"),
-        Path(f"{agent_name}.agent.yaml"),
-        Path(".soloflow/agents") / f"{agent_name}.agent.yml",
-        Path(".soloflow/agents") / f"{agent_name}.agent.yaml",
-    ]
-    agent = None
-    for p in search_paths:
-        if p.exists():
-            data = yaml.safe_load(p.read_text(encoding="utf-8"))
-            agent = AgentDefinition(**data)
-            break
-
-    if agent is None:
+    try:
+        agent = load_agent(agent_name)
+    except FileNotFoundError:
         return f"Agent 不存在: {agent_name}"
 
     results = run_agent(agent, task)
