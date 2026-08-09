@@ -2,7 +2,8 @@
 # MCP Server 本地测试脚本
 # 无需重启 Claude Code，直接在终端验证
 
-cd "E:/outdoor/soloflow"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 echo "===== 1. discover ====="
 echo '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}' | uv run sf mcp 2>/dev/null | python -m json.tool

@@ -3,7 +3,7 @@
     "soloflow": {
       "command": "uv",
       "args": ["run", "sf", "mcp"],
-      "cwd": "E:/outdoor/soloflow"
+      "cwd": "<absolute-path-to-SoloFlow>"
     }
   },
   "_soloflow_mcp_config": {

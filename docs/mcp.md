@@ -1,0 +1,34 @@
+# MCP Integration
+
+SoloFlow 通过 JSON-RPC 2.0 over stdio 暴露 MCP 工具。
+
+## Start the server
+
+```bash
+uv run sf mcp
+```
+
+客户端配置可以参考仓库根目录的 `mcp-config.example.json`。其中的路径和命令需要按客户端环境调整。
+
+## Tools
+
+- `soloflow_list_skills`
+- `soloflow_get_skill`
+- `soloflow_run_skill`
+- `soloflow_list_flows`
+- `soloflow_run_flow`
+- `soloflow_list_agents`
+- `soloflow_run_agent`
+- `soloflow_validate_skill`
+- `soloflow_validate_flow`
+
+## Security
+
+通过以下环境变量或 `.soloflow/mcp.json` 配置安全策略：
+
+- `SOLOFLOW_MCP_TOKEN`
+- `SOLOFLOW_MCP_ALLOWED_TOOLS`
+
+推荐为每个客户端设置非空 token，并只允许实际需要的工具。配置文件和 token 不应提交到 Git。
+
+当前自动化测试覆盖 stdio 子进程、鉴权和工具白名单；真实客户端连接仍列为 Release Candidate 验收项。

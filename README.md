@@ -1,146 +1,168 @@
 # SoloFlow
 
-> Docker Compose for AI Skills —— 文件驱动的 AI 技能管理系统。
+> 文件驱动的 AI Skill、Agent 与 LLM 工作流编排工具。
 
-[![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
+[![CI](https://github.com/halexzd686-cloud/SoloFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/halexzd686-cloud/SoloFlow/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Alpha-orange.svg)]()
+[![Status](https://img.shields.io/badge/Status-Release%20Candidate-orange.svg)](STATUS.md)
 
-将专家经验封装为可复用、可分享、可自我迭代的 SKILL.md 文件，让 AI 按标准干活。
+SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
 
-## 为什么需要 SoloFlow
+当前版本为 `0.9.1`。本地 233 项测试、静态检查、wheel 构建及 Windows 干净环境安装 smoke 已通过；远程 GitHub Actions 和真实外部服务仍待验证，详见[项目状态](STATUS.md)。
 
-你的提示词散落各处——CLAUDE.md 里塞了几条、聊天记录里藏着几条、Notion 文档里记了一些。每次做类似的事都要重新写、重新调。
+## 它解决什么问题
 
-**SoloFlow 把它们变成结构化资产：** 一个 Skill 文件 = 一份完整的专家经验包，可以被任何 AI 工具加载和执行。
+| 问题 | SoloFlow 的做法 |
+| --- | --- |
+| 提示词散落在聊天记录和项目配置中 | 用 `SKILL.md` 形成可复用、可审查的专家资产 |
+| 一个复杂任务需要多轮手工衔接 | 用 YAML Flow 定义依赖、输入、并发和输出 |
+| 角色设定与技能配置互相混杂 | Agent 组合 Soul 人格、多个 Skill 和模型覆盖配置 |
+| 中途失败只能从头开始 | 保存运行状态并通过 `sf flow resume` 恢复 |
+| 不同模型 SDK 使用方式不一致 | 通过 LiteLLM 使用统一调用层 |
 
-## 快速开始
+## 核心模型
 
-> 当前为 Alpha 阶段，尚未发布到 PyPI。请从源码安装。
+```mermaid
+flowchart LR
+    A["SKILL.md"] --> B["Skill Runner"]
+    A --> C["Agent: Soul + Skills"]
+    B --> D["LiteLLM"]
+    C --> D
+    E["Flow YAML"] --> F["DAG Engine"]
+    F --> B
+    F --> C
+    D --> G["模型输出与 token usage"]
+    F --> H["运行记录与断点恢复"]
+```
+
+## 安装
+
+SoloFlow 尚未发布到 PyPI。当前请从源码安装：
 
 ```bash
-# 从源码安装（推荐 uv）
-git clone <your-repo-url>/soloflow.git
-cd soloflow
+git clone https://github.com/halexzd686-cloud/SoloFlow.git
+cd SoloFlow
 uv sync --extra dev
-
-# 运行测试
-uv run pytest -q
-
-# 运行 CLI
-uv run sf --help
+uv run sf version
 ```
 
-## 核心概念
-
-```
-Skill（技能文件）     →  封装专家经验，一个文件 = 一个完整技能
-Agent（智能体）       →  加载 Skill，扮演特定角色（可绑定多个 Skill）
-Flow（工作流）        →  编排多个 Skill/Agent 协同完成复杂任务（DAG）
-```
-
-### Skill 文件结构
-
-一个 Skill 文件采用 YAML frontmatter + Markdown body 格式，人机双读：
-
-```markdown
----
-name: content-writer
-version: 1.0.0
-description: 撰写高质量深度长文
-context: 你是一位资深商业内容作者...
-objective: 撰写一篇 3000-4000 字的深度文章...
-rules:
-  - "不要有 AI 味儿"
-  - "每段不超过 4 行"
----
-
-## Instructions
-
-1. 破题：用一个反直觉的观点开头
-2. 展开：用具体案例支撑每个观点
-3. 收尾：一句金句 + 行动建议
-```
-
-## 快速体验
+要求 Python 3.12 或 3.13。也可以构建并安装 wheel：
 
 ```bash
-# 查看内置 Skill
+uv build
+uv pip install dist/soloflow-*.whl
+```
+
+完整安装说明见[快速开始](docs/quickstart.md)。
+
+## 五分钟体验
+
+查看安装包自带的资产：
+
+```bash
 uv run sf skill list
-
-# 预览 Prompt（不产生 API 费用）
-uv run sf skill run content-writer "测试主题" --dry-run
-
-# 查看 Flow 执行计划
-uv run sf flow run blog-pipeline -i topic="AI Agent" --dry-run
-
-# TUI 仪表盘（侘寂风）
-uv run sf dashboard
+uv run sf agent list
+uv run sf flow list
 ```
 
-## CLI 命令
+无需 API Key 即可预览 Skill Prompt 和 Flow 执行计划：
 
 ```bash
-# Skill 管理
-sf skill init <name>              # 创建 Skill
-sf skill validate <path>          # 校验格式
-sf skill list                     # 列出所有 Skill
-sf skill run <name> <task>        # 执行任务（-n 5 抽卡模式，--stream 流式）
-sf skill iter <name> -n 30        # 自我迭代
-
-# Agent 管理
-sf agent create <name>            # 创建 Agent
-sf agent run <name> <task>        # 执行任务
-sf agent heartbeat start <name>   # 心跳定时调度
-
-# Flow 编排
-sf flow run <name> -i key=value   # 执行 Flow（DAG 并行编排）
-sf flow runs                      # 查看运行记录
-sf flow resume <run-id>           # 从断点恢复
-
-# Registry 市场
-sf registry search <keyword>      # 搜索
-sf registry install <name>        # 安装（--version 锁定版本）
-sf registry publish <name>        # 发布（--submit 自动 PR）
-
-# 其他
-sf dashboard                      # TUI 仪表盘
-sf mcp                            # MCP Server（JSON-RPC over stdio）
+uv run sf skill run content-writer "AI Agent 落地" --dry-run
+uv run sf flow run blog-pipeline -i topic="AI Agent 落地" --dry-run
 ```
 
-## 内置资产
+配置模型供应商的环境变量后运行真实任务，例如：
 
-- **Skills**: `content-writer`（深度写作）、`code-reviewer`（代码审查）、`market-researcher`（市场调研）、`hello-world`（入门示例）
-- **Agents**: `content-editor`（主编人格）、`code-guardian`（首席架构师人格）
-- **Flows**: `blog-pipeline`、`code-review`、`competitive-analysis`、`content-marketing`、`meeting-notes`、`onboarding-docs`、`release-notes`、`weekly-report`
+```powershell
+$env:DEEPSEEK_API_KEY = "<your-key>"
+uv run sf skill run content-writer "AI Agent 落地"
+```
 
-## 能力边界（重要）
+不要把 API Key 写入 Skill、Flow、MCP 配置或提交到 Git。
 
-SoloFlow 当前是 **AI Skill/Prompt 编排工具**，不是完整的自主 Agent 平台：
+## 主要能力
 
-- Runner 只把 Prompt 发给 LLM，不自动提供外部工具（`market-researcher` 不会自己上网）
-- Agent 是 Prompt 组合层，无独立记忆、工具调用、规划循环
-- Flow 步骤之间只传递字符串输出
+- Skill：创建、校验、列表、执行、多版本生成和自动迭代。
+- Agent：Soul 人格、多个 Skill、配置继承与 Heartbeat 调度。
+- Flow：DAG 校验、变量引用、分层并发、失败跳过、超时重试、输出映射和断点恢复。
+- Registry：离线索引、Git 拉取、版本安装、打包发布和可选 PR 提交。
+- MCP：JSON-RPC 2.0 over stdio，提供 9 个 Skill、Agent、Flow 工具。
+- TUI：终端仪表盘、详情弹窗、动态输入和运行恢复。
 
-## 开发
+安装包内置：
+
+- 4 个 Skill：`content-writer`、`code-reviewer`、`market-researcher`、`hello-world`
+- 2 个 Agent：`content-editor`、`code-guardian`
+- 8 个 Flow：blog、代码审查、竞品分析、内容营销、会议纪要、入职文档、发布说明和周报
+
+项目目录或 `~/.soloflow` 中的同名资产会覆盖安装包默认资产。
+
+## 能力边界
+
+SoloFlow 是 Prompt 与 LLM 工作流编排工具，不是完整的自主 Agent 平台：
+
+- Runner 不会自动获得浏览器、搜索、文件系统或其他工具。
+- Agent 没有自主规划循环、长期记忆和后台分布式执行能力。
+- Flow 步骤主要传递字符串输出，暂不支持条件节点、人工审批和 fallback model。
+- Registry 暂无签名、checksum 和 commit SHA lockfile。
+- Heartbeat 和远程 Registry 在正式 `v1.0.0` 前仍需真实环境稳定性验证。
+
+## MCP 接入
+
+启动 stdio Server：
+
+```bash
+uv run sf mcp
+```
+
+客户端配置示例见 [mcp-config.example.json](mcp-config.example.json)，安全配置和工具列表见 [MCP 文档](docs/mcp.md)。
+
+## 项目结构
+
+```text
+SoloFlow/
+├── agents/                 # Agent 示例源码
+├── flows/                  # Flow 示例源码
+├── skills/                 # Skill 示例源码
+├── soloflow/               # Python 包
+├── tests/                  # 自动化测试
+├── docs/                   # 用户与架构文档
+├── .github/workflows/      # CI 与 Release
+├── pyproject.toml
+└── uv.lock
+```
+
+顶层 `skills/`、`agents/`、`flows/` 是内置资产的唯一源码；构建 wheel 时会映射到包内资源目录。
+
+## 开发与验证
 
 ```bash
 uv sync --extra dev
-uv run pytest -q          # 233 项测试（本地）
+uv run pytest -q
 uv run ruff check soloflow tests
-uv run ruff format soloflow tests
-uv build                  # 构建 wheel/sdist
+uv run ruff format --check soloflow tests
+uv build
 ```
 
-## 路线图
+当前本地基线：233 项测试通过，48 个 Python 文件格式检查通过。远程 CI 结果以 GitHub Actions 页面为准。
 
-- [x] v0.1 — Skill 核心：创建、校验、执行、迭代
-- [x] v0.2 — Agent 管理 + Flow DAG 编排
-- [x] v0.3 — 社区 Skill Registry
-- [x] v0.4 — 侘寂风 TUI 仪表盘
-- [x] v0.5+ — MCP Server、心跳 daemon、版本锁定、流式输出、断点恢复
-- [ ] v1.0 — Registry 远程闭环、真实 LLM 端到端验证、发布到 PyPI
+## Roadmap
+
+- [x] Skill、Agent、Flow、TUI、MCP 和本地 Registry 基础能力
+- [x] Flow 并发、失败传播、运行持久化和恢复
+- [x] wheel 内置资产与源码目录外安装 smoke
+- [ ] 真实 LLM 多供应商端到端验证
+- [ ] 真实 MCP 客户端连接验证
+- [ ] 远程社区 Registry 完整闭环
+- [ ] Heartbeat 长时间与重启恢复验证
+- [ ] `v1.0.0` 与 PyPI 发布
+
+## 参与项目
+
+提交问题或代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题请按照 [SECURITY.md](SECURITY.md) 私下报告。版本变化记录在 [CHANGELOG.md](CHANGELOG.md)。
 
 ## License
 
-MIT
+[MIT License](LICENSE)

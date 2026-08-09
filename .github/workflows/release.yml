@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Smoke test wheel outside the source tree
+        run: |
+          uv venv /tmp/soloflow-release-venv
+          uv pip install --python /tmp/soloflow-release-venv dist/*.whl
+          mkdir -p /tmp/soloflow-release-cwd
+          cd /tmp/soloflow-release-cwd
+          /tmp/soloflow-release-venv/bin/sf version
+          /tmp/soloflow-release-venv/bin/sf skill show content-writer --json > /dev/null
+          /tmp/soloflow-release-venv/bin/sf agent show content-editor --json > /dev/null
+          /tmp/soloflow-release-venv/bin/sf flow run blog-pipeline --dry-run -i topic=test > /dev/null
+
+      - name: Generate checksums
+        run: sha256sum dist/* > dist/SHA256SUMS
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          args=(--verify-tag --generate-notes)
+          if [[ "${GITHUB_REF_NAME}" == *"-rc."* ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${GITHUB_REF_NAME}" dist/* "${args[@]}"
