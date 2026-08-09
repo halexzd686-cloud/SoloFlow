@@ -7,8 +7,8 @@ license: MIT
 tags:
 - writing
 - content
-model: claude-sonnet-4-20250514
-provider: anthropic
+model: deepseek-v4-flash
+provider: deepseek
 temperature: 0.7
 max_tokens: 4096
 context: 你是一位AI领域的资深开发者，擅长给小白写AI教学

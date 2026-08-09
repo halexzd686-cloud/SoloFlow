@@ -35,7 +35,7 @@ uv run sf flow run blog-pipeline -i topic="测试主题" --dry-run
 
 `--dry-run` 只渲染 Prompt 或执行计划，不调用模型。
 
-## Configure a provider
+## Configure DeepSeek
 
 v1.0 推荐并真实验证 DeepSeek。可以使用 Shell 环境变量提供凭据，PowerShell 示例：
 
@@ -43,7 +43,7 @@ v1.0 推荐并真实验证 DeepSeek。可以使用 Shell 环境变量提供凭�
 $env:DEEPSEEK_API_KEY = "<your-key>"
 ```
 
-Skill 中的 `provider` 和 `model` 决定调用目标。OpenAI 与 Anthropic 的兼容入口仍然保留，但在完成真实端到端验证前属于实验性支持；v1.0 不要求配置这两类密钥。
+`v1.0.1` 起，新建 Skill、代码兜底配置和内置示例都使用 `deepseek/deepseek-v4-flash`。当前版本不会调用其他 provider 或 model。
 
 也可以使用项目本地 `.env`：
 
@@ -53,6 +53,14 @@ Copy-Item .env.example .env
 ```
 
 SoloFlow 只加载当前工作目录的 `.env`，不会向父目录搜索，也不会覆盖已有的进程环境变量。`.env` 默认不会进入 Git；不要把任何真实密钥提交到仓库。
+
+开始付费调用前建议先验证默认示例：
+
+```bash
+uv run sf skill run content-writer "写一篇虚构产品介绍，不得编造参数" --dry-run
+```
+
+完整的逐步案例见[从零完成一次 SoloFlow 内容发布](tutorial.md)。
 
 ## Run and resume a Flow
 

@@ -15,7 +15,7 @@ def _fake_completion_response(
     content: str = "hello world",
     prompt_tokens: int = 10,
     completion_tokens: int = 5,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "deepseek-v4-flash",
     request_id: str = "req-123",
 ) -> SimpleNamespace:
     """构造一个模拟的 LiteLLM completion 响应对象。"""
@@ -40,16 +40,16 @@ def test_call_llm_full_returns_structured_result():
         patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
         patch("litellm.completion", return_value=_fake_completion_response()),
     ):
-        result = call_llm_full(prompt="test", provider="anthropic")
+        result = call_llm_full(prompt="test")
 
     assert isinstance(result, LLMResult)
     assert result.content == "hello world"
     assert result.prompt_tokens == 10
     assert result.completion_tokens == 5
     assert result.total_tokens == 15
-    assert result.model == "claude-sonnet-4-20250514"
+    assert result.model == "deepseek-v4-flash"
     assert result.request_id == "req-123"
-    assert result.provider == "anthropic"
+    assert result.provider == "deepseek"
 
 
 def test_call_llm_full_usage_dict_form():
@@ -61,7 +61,7 @@ def test_call_llm_full_usage_dict_form():
         patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
         patch("litellm.completion", return_value=resp),
     ):
-        result = call_llm_full(prompt="test", provider="openai")
+        result = call_llm_full(prompt="test")
 
     assert result.total_tokens == 27
     assert result.prompt_tokens == 20
@@ -101,6 +101,18 @@ def test_call_llm_missing_api_key():
             call_llm_full(prompt="test")
 
 
+@pytest.mark.parametrize(
+    ("provider", "model"),
+    [("unsupported", "deepseek-v4-flash"), ("deepseek", "unsupported-model")],
+)
+def test_call_llm_rejects_unsupported_target(provider, model):
+    """当前版本在读取密钥和发起网络请求前拒绝非指定目标。"""
+    with patch("litellm.completion") as mock_completion:
+        with pytest.raises(RuntimeError, match="仅支持 deepseek/deepseek-v4-flash"):
+            call_llm_full(prompt="test", provider=provider, model=model)
+        mock_completion.assert_not_called()
+
+
 def test_call_llm_dry_run():
     """dry_run 不调用 LLM，返回占位结果。"""
     with patch("litellm.completion") as mock_completion:
@@ -109,6 +121,8 @@ def test_call_llm_dry_run():
 
     assert result.content == "[DRY RUN]"
     assert result.total_tokens == 0
+    assert result.provider == "deepseek"
+    assert result.model == "deepseek-v4-flash"
 
 
 # ── GAP-LLM-003: 重试 / 退避 / 超时 ──

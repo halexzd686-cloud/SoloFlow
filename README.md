@@ -1,104 +1,122 @@
 # SoloFlow
 
-> 文件驱动的 AI Skill、Agent 与 LLM 工作流编排工具。
+> 把一套反复使用的 AI 工作方法，保存成文件，并按步骤自动执行。
 
 [![CI](https://github.com/halexzd686-cloud/SoloFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/halexzd686-cloud/SoloFlow/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
+[![PyPI](https://img.shields.io/pypi/v/soloflow.svg)](https://pypi.org/project/soloflow/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg)](STATUS.md)
 
-SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
+SoloFlow 是一个文件驱动的 AI 工作流工具。你可以把“怎么写文章”“怎么审查代码”这类经验写进 `SKILL.md`，把一个角色需要的能力组合成 Agent，再用 YAML Flow 串起调研、写作、分发等多个步骤。所有配置都是普通文本，能在本地运行，也能用 Git 审查、回滚和分享。
 
-当前稳定版本为 `1.0.0`。本地 248 项测试、GitHub Actions 跨平台矩阵、wheel 构建、PyPI 正式版 Trusted Publishing、GitHub/PyPI 哈希一致性与官方索引干净安装、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install，以及 Heartbeat 故障注入与真实环境加速 soak 均已通过。v1.0 以 DeepSeek 为官方验证和推荐供应商；OpenAI、Anthropic 保留兼容入口，但在真实验证前视为实验性支持。详见[项目状态](STATUS.md)。
+当前代码为 `1.0.1` 候选版，仅接入已真实验收的 `deepseek/deepseek-v4-flash`；PyPI 最新正式版为 `1.0.0`。
 
-## 它解决什么问题
+## 一分钟理解 SoloFlow
 
-| 问题 | SoloFlow 的做法 |
-| --- | --- |
-| 提示词散落在聊天记录和项目配置中 | 用 `SKILL.md` 形成可复用、可审查的专家资产 |
-| 一个复杂任务需要多轮手工衔接 | 用 YAML Flow 定义依赖、输入、并发和输出 |
-| 角色设定与技能配置互相混杂 | Agent 组合 Soul 人格、多个 Skill 和模型覆盖配置 |
-| 中途失败只能从头开始 | 保存运行状态并通过 `sf flow resume` 恢复 |
-| 不同模型 SDK 使用方式不一致 | 通过 LiteLLM 使用统一调用层 |
+可以把 SoloFlow 想成一间由文件管理的工作室：
 
-## 核心模型
+| 名称 | 通俗理解 | 例子 |
+| --- | --- | --- |
+| Skill | 一份可重复执行的工作手册 | “如何写一篇不空泛的深度文章” |
+| Agent | 带有人格和多项能力的岗位角色 | “严格但诚实的内容主编” |
+| Flow | 把多个岗位按依赖关系排成流水线 | 调研 → 写作 → 生成社交文案 |
+| Registry | 存放和分享 Skill 的技能仓库 | 从 Git 仓库安装团队 Skill |
+| Heartbeat | 定时唤醒 Agent 的本地调度器 | 每两小时生成一次监控摘要 |
+| MCP | 让其他 AI 客户端调用 SoloFlow 的接口 | 在 Claude Code 中列出或运行 Skill |
 
-```mermaid
-flowchart LR
-    A["SKILL.md"] --> B["Skill Runner"]
-    A --> C["Agent: Soul + Skills"]
-    B --> D["LiteLLM"]
-    C --> D
-    E["Flow YAML"] --> F["DAG Engine"]
-    F --> B
-    F --> C
-    D --> G["模型输出与 token usage"]
-    F --> H["运行记录与断点恢复"]
-```
+如果你只想完成一个明确任务，用 **Skill**；希望固定角色风格，用 **Agent**；需要多个步骤自动衔接和失败恢复，用 **Flow**。
 
-## 安装
+## 五分钟跑通第一个任务
 
-可以从 PyPI 直接运行稳定版：
+以下示例使用虚构产品“TrailLight Mini 露营灯”。完整案例见[从零完成一次内容发布](docs/tutorial.md)。
+
+### 1. 安装
+
+需要 Python 3.12 或 3.13，推荐使用 [uv](https://docs.astral.sh/uv/)：
 
 ```bash
-uvx --from soloflow sf version
+uv tool install soloflow
+sf version
 ```
 
-也可以从源码安装：
+如果你正在使用源码仓库，则把后续命令中的 `sf` 换成 `uv run sf`。
+
+### 2. 不花 API 费用，先预览会发生什么
 
 ```bash
-git clone https://github.com/halexzd686-cloud/SoloFlow.git
-cd SoloFlow
-uv sync --extra dev
-uv run sf version
+sf skill list
+sf skill run content-writer "为 TrailLight Mini 露营灯写一篇新品介绍" --dry-run
+sf flow run blog-pipeline -i topic="TrailLight Mini 露营灯" --dry-run
 ```
 
-要求 Python 3.12 或 3.13。也可以构建并安装 wheel：
+`--dry-run` 不调用模型。第一条运行命令会展示最终 Prompt；第二条会展示 Flow 的四个步骤和三层执行顺序。
 
-```bash
-uv build
-uv pip install dist/soloflow-*.whl
+### 3. 配置 DeepSeek API Key
+
+在准备运行 SoloFlow 的目录中新建 `.env`：
+
+```dotenv
+DEEPSEEK_API_KEY=你的实际密钥
 ```
 
-完整安装说明见[快速开始](docs/quickstart.md)。
-
-## 五分钟体验
-
-查看安装包自带的资产：
-
-```bash
-uv run sf skill list
-uv run sf agent list
-uv run sf flow list
-```
-
-无需 API Key 即可预览 Skill Prompt 和 Flow 执行计划：
-
-```bash
-uv run sf skill run content-writer "AI Agent 落地" --dry-run
-uv run sf flow run blog-pipeline -i topic="AI Agent 落地" --dry-run
-```
-
-配置模型供应商的环境变量后运行真实任务，例如：
+也可以只在当前 PowerShell 会话设置：
 
 ```powershell
-$env:DEEPSEEK_API_KEY = "<your-key>"
-uv run sf skill run content-writer "AI Agent 落地"
+$env:DEEPSEEK_API_KEY = "你的实际密钥"
 ```
 
-也可以复制 `.env.example` 为当前工作目录下的 `.env` 并填写实际使用的供应商。SoloFlow 只读取当前目录的 `.env`，不会向父目录搜索，也不会覆盖系统或 Shell 已设置的环境变量。
+SoloFlow 只读取当前工作目录的 `.env`，不会搜索父目录，也不会覆盖已经存在的环境变量。不要把真实密钥写进 Skill、Flow 或提交到 Git；项目的 `.gitignore` 应包含 `.env`。
 
-不要把 API Key 写入 Skill、Flow、MCP 配置或提交到 Git；`.env` 已默认加入忽略规则。
+### 4. 运行一个真实 Skill
 
-## 模型供应商支持
+```bash
+sf skill run content-writer "为 TrailLight Mini 露营灯写一篇新品介绍。产品为虚构案例，不得补充未经提供的参数。已知信息：重量 180 克、三档亮度、USB-C 充电、面向周末露营新手。"
+```
 
-| 供应商 | v1.0 状态 | 说明 |
-| --- | --- | --- |
-| DeepSeek | 官方验证、推荐 | Skill、Agent、Flow、重试与 Heartbeat 真实调用均已验收 |
-| OpenAI | 实验性兼容 | 保留 LiteLLM 接入与环境变量支持，尚未进行付费真实调用 |
-| Anthropic | 实验性兼容 | 保留 LiteLLM 接入与环境变量支持，尚未进行付费真实调用 |
+SoloFlow 会读取 `content-writer` 的写作规范，组合你的任务，然后调用 DeepSeek。终端会显示模型输出与 token usage。
 
-实验性兼容表示代码路径保留且有 mock 测试覆盖，不代表已经完成供应商端到端验收。
+### 5. 扩展成完整流水线
+
+```bash
+sf flow run blog-pipeline -i topic="TrailLight Mini 露营灯：180 克、三档亮度、USB-C 充电，面向周末露营新手；这是虚构案例，不得编造市场数据"
+sf flow runs
+```
+
+这个 Flow 会依次完成调研框架、长文写作，再并行生成 X 和 LinkedIn 文案。运行记录保存在当前目录的 `.soloflow/runs/`；若中途失败，可执行：
+
+```bash
+sf flow resume <run-id>
+```
+
+> `market-researcher` 本身没有联网搜索能力。没有外部工具或可靠资料时，它只能基于输入做结构化分析，不能把生成内容当作已核实的市场事实。
+
+## 虚拟案例：一条命令背后发生了什么
+
+假设小团队要发布 TrailLight Mini：
+
+```text
+输入产品资料
+    ↓
+market-researcher：整理用户、卖点、风险和内容角度
+    ↓
+content-writer：把调研结果写成长文
+    ↓
+content-writer：并行生成 X 文案和 LinkedIn 文案
+    ↓
+保存每一步状态与最终输出
+```
+
+这里最重要的不是某一次生成结果，而是这套流程已经写进文件：团队可以修改 Prompt、审查变更、重新运行，并在失败后从断点继续。完整教学包含预期输出、目录说明、故障恢复与定制方法，见 [`docs/tutorial.md`](docs/tutorial.md)。
+
+## 内置示例
+
+安装包自带：
+
+- 4 个 Skill：`content-writer`、`code-reviewer`、`market-researcher`、`hello-world`
+- 2 个 Agent：`content-editor`、`code-guardian`
+- 8 个 Flow：博客、代码审查、竞品分析、内容营销、会议纪要、入职文档、发布说明和周报
+
+这些示例默认使用 `deepseek/deepseek-v4-flash`。项目目录或 `~/.soloflow` 中的同名资产会覆盖安装包资产，因此可以先复制示例，再改成自己的工作方法。
 
 ## 主要能力
 
@@ -109,83 +127,54 @@ uv run sf skill run content-writer "AI Agent 落地"
 - MCP：JSON-RPC 2.0 over stdio，提供 9 个 Skill、Agent、Flow 工具。
 - TUI：终端仪表盘、详情弹窗、动态输入和运行恢复。
 
-安装包内置：
-
-- 4 个 Skill：`content-writer`、`code-reviewer`、`market-researcher`、`hello-world`
-- 2 个 Agent：`content-editor`、`code-guardian`
-- 8 个 Flow：blog、代码审查、竞品分析、内容营销、会议纪要、入职文档、发布说明和周报
-
-项目目录或 `~/.soloflow` 中的同名资产会覆盖安装包默认资产。
-
-## 能力边界
-
-SoloFlow 是 Prompt 与 LLM 工作流编排工具，不是完整的自主 Agent 平台：
-
-- Runner 不会自动获得浏览器、搜索、文件系统或其他工具。
-- Agent 没有自主规划循环、长期记忆和后台分布式执行能力。
-- Flow 步骤主要传递字符串输出，暂不支持条件节点、人工审批和 fallback model。
-- Registry 暂无签名、checksum 和 commit SHA lockfile。
-- Heartbeat 已通过单机加速稳定性验收；跨机器、跨网络环境的长期运行仍需社区反馈。
-
-## MCP 接入
-
-启动 stdio Server：
+## 从源码开发
 
 ```bash
-uv run sf mcp
-```
-
-客户端配置示例见 [mcp-config.example.json](mcp-config.example.json)，安全配置和工具列表见 [MCP 文档](docs/mcp.md)。
-
-## 项目结构
-
-```text
-SoloFlow/
-├── agents/                 # Agent 示例源码
-├── flows/                  # Flow 示例源码
-├── skills/                 # Skill 示例源码
-├── soloflow/               # Python 包
-├── tests/                  # 自动化测试
-├── docs/                   # 用户与架构文档
-├── .github/workflows/      # CI 与 Release
-├── pyproject.toml
-└── uv.lock
-```
-
-顶层 `skills/`、`agents/`、`flows/` 是内置资产的唯一源码；构建 wheel 时会映射到包内资源目录。
-
-## 开发与验证
-
-```bash
+git clone https://github.com/halexzd686-cloud/SoloFlow.git
+cd SoloFlow
 uv sync --extra dev
+uv run sf version
+```
+
+常用验证命令：
+
+```bash
 uv run pytest -q
 uv run ruff check soloflow tests
 uv run ruff format --check soloflow tests
 uv build
 ```
 
-当前本地基线：248 项测试通过，65 个 Python 文件格式检查通过。远程 Windows/Linux × Python 3.12/3.13 矩阵和 Ubuntu clean-wheel smoke 已通过；最新结果以 GitHub Actions 页面为准。
+详细安装说明见[快速开始](docs/quickstart.md)，MCP 配置见[MCP 文档](docs/mcp.md)，当前验收范围见[项目状态](STATUS.md)。
 
-## Roadmap
+## 模型配置
 
-- [x] Skill、Agent、Flow、TUI、MCP 和本地 Registry 基础能力
-- [x] Flow 并发、失败传播、运行持久化和恢复
-- [x] wheel 内置资产与源码目录外安装 smoke
-- [x] DeepSeek 真实 Skill、Agent、Flow 端到端与 token usage 验证
-- [ ] v1.1：OpenAI、Anthropic 等其他 LLM 供应商端到端验证
-- [x] Claude Code 真实 MCP 客户端连接与工具调用验证
-- [x] 远程社区 Registry update、search、版本校验与 install
-- [x] 远程社区 Registry publish/PR 闭环
-- [x] Heartbeat daemon 启停、探活、中断恢复与 PID 清理
-- [x] Heartbeat 双 Agent 并发真实 LLM 触发与状态持久化
-- [x] Heartbeat PID 复用识别与无关进程保护
-- [x] Heartbeat 500 周期超时、连接、限流和空响应故障注入
-- [x] Heartbeat 67 分钟真实 DeepSeek 加速稳定性验收（33/33 次成功）
-- [x] `v1.0.0` 正式版发布（GitHub Release 与 PyPI Trusted Publishing）
+| 调用目标 | 状态 | 说明 |
+| --- | --- | --- |
+| `deepseek/deepseek-v4-flash` | 唯一支持、默认 | Skill、Agent、Flow、重试与 Heartbeat 均完成真实调用验收 |
 
-## 参与项目
+为避免误用其他付费 API，`v1.0.1` 会在读取密钥和发起请求前拒绝其他 provider 或 model。
 
-提交问题或代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题请按照 [SECURITY.md](SECURITY.md) 私下报告。版本变化记录在 [CHANGELOG.md](CHANGELOG.md)。
+## 能力边界
+
+SoloFlow 是 Prompt 与 LLM 工作流编排工具，不是完整的自主 Agent 平台：
+
+- Runner 不会自动获得浏览器、搜索、文件系统或其他外部工具。
+- Agent 没有自主规划循环、长期记忆和分布式执行能力。
+- Flow 主要传递字符串输出，暂不支持条件节点、人工审批和 fallback model。
+- Registry 暂无签名、checksum 和 commit SHA lockfile。
+- Heartbeat 已通过单机加速稳定性验收，跨机器长期运行仍需更多反馈。
+
+## 项目状态与路线
+
+`v1.0.0` 已发布到 [PyPI](https://pypi.org/project/soloflow/) 和 [GitHub Releases](https://github.com/halexzd686-cloud/SoloFlow/releases/tag/v1.0.0)，并完成跨平台 CI、发行包哈希、数字证明、干净安装、DeepSeek 真实调用、MCP、Registry 与 Heartbeat 验收。
+
+下一阶段计划包括：
+
+- 发布 `v1.0.1`：默认配置统一为 DeepSeek，并补充可复现的入门教程。
+- `v1.1`：增强 Flow 条件控制和外部工具能力；是否扩展模型供应商另行评估。
+
+提交问题或代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题请按 [SECURITY.md](SECURITY.md) 私下报告，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## License
 

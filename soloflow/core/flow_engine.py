@@ -99,8 +99,8 @@ def datetime_now_iso() -> str:
 
 
 # 兜底 LLM 配置（Skill 加载失败时使用）
-_DEFAULT_LLM_MODEL = "claude-sonnet-4-20250514"
-_DEFAULT_LLM_PROVIDER = "anthropic"
+_DEFAULT_LLM_MODEL = "deepseek-v4-flash"
+_DEFAULT_LLM_PROVIDER = "deepseek"
 _DEFAULT_LLM_TEMPERATURE = 0.7
 _DEFAULT_LLM_MAX_TOKENS = 4096
 

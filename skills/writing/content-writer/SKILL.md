@@ -8,8 +8,8 @@ tags:
   - writing
   - content
   - blog
-model: claude-sonnet-4-20250514
-provider: anthropic
+model: deepseek-v4-flash
+provider: deepseek
 temperature: 0.7
 max_tokens: 4096
 context: |

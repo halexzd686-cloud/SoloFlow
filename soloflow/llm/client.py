@@ -16,6 +16,9 @@ from rich.console import Console
 
 console = Console()
 
+SUPPORTED_PROVIDER = "deepseek"
+SUPPORTED_MODEL = "deepseek-v4-flash"
+
 # 可重试的异常类名关键词（GAP-LLM-003: 限流 / 超时 / 连接 / 服务端错误可重试）
 _RETRYABLE_ERROR_KEYWORDS = (
     "ratelimit",
@@ -72,25 +75,24 @@ def _extract_usage(response) -> tuple[int, int, int]:
 
 
 def _get_api_key(provider: str) -> str | None:
-    """获取 API Key。"""
-    env_map = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "deepseek": "DEEPSEEK_API_KEY",
-        "moonshot": "MOONSHOT_API_KEY",
-        "zhipu": "ZHIPU_API_KEY",
-        "minimax": "MINIMAX_API_KEY",
-    }
-    env_var = env_map.get(provider.lower())
-    if env_var:
-        return os.environ.get(env_var)
-    return None
+    """获取当前唯一支持的 DeepSeek API Key。"""
+    if provider.lower() != SUPPORTED_PROVIDER:
+        return None
+    return os.environ.get("DEEPSEEK_API_KEY")
+
+
+def _validate_target(provider: str, model: str) -> None:
+    """拒绝非 DeepSeek V4 Flash 目标，避免意外调用其他付费 API。"""
+    if provider.lower() != SUPPORTED_PROVIDER or model.lower() != SUPPORTED_MODEL:
+        raise RuntimeError(
+            f"当前版本仅支持 {SUPPORTED_PROVIDER}/{SUPPORTED_MODEL}，收到 {provider}/{model}。"
+        )
 
 
 def call_llm_full(
     prompt: str,
-    model: str = "claude-sonnet-4-20250514",
-    provider: str = "anthropic",
+    model: str = "deepseek-v4-flash",
+    provider: str = "deepseek",
     temperature: float = 0.7,
     max_tokens: int = 4096,
     dry_run: bool = False,
@@ -116,6 +118,8 @@ def call_llm_full(
     Returns:
         LLMResult 含 content + token usage + model + request_id。
     """
+    _validate_target(provider, model)
+
     if dry_run:
         console.print("[yellow]Dry run —— 不调用 LLM[/yellow]")
         return LLMResult(content="[DRY RUN]", provider=provider, model=model)
@@ -123,8 +127,7 @@ def call_llm_full(
     api_key = _get_api_key(provider)
     if not api_key:
         raise RuntimeError(
-            f"未设置 {provider} 的 API Key。"
-            f"请设置环境变量 (如 ANTHROPIC_API_KEY) 或使用 --dry-run 预览。"
+            f"未设置 {provider} 的 API Key。请设置环境变量 DEEPSEEK_API_KEY 或使用 --dry-run 预览。"
         )
 
     try:
@@ -186,8 +189,8 @@ def call_llm_full(
 
 def call_llm(
     prompt: str,
-    model: str = "claude-sonnet-4-20250514",
-    provider: str = "anthropic",
+    model: str = "deepseek-v4-flash",
+    provider: str = "deepseek",
     temperature: float = 0.7,
     max_tokens: int = 4096,
     dry_run: bool = False,
@@ -217,8 +220,8 @@ def call_llm(
 
 def call_llm_stream(
     prompt: str,
-    model: str = "claude-sonnet-4-20250514",
-    provider: str = "anthropic",
+    model: str = "deepseek-v4-flash",
+    provider: str = "deepseek",
     temperature: float = 0.7,
     max_tokens: int = 4096,
     on_usage: Callable[[LLMResult], None] | None = None,
@@ -244,9 +247,11 @@ def call_llm_stream(
     Yields:
         每次 yield 一段增量文本。
     """
+    _validate_target(provider, model)
+
     api_key = _get_api_key(provider)
     if not api_key:
-        raise RuntimeError(f"未设置 {provider} 的 API Key。请设置环境变量 (如 ANTHROPIC_API_KEY)。")
+        raise RuntimeError(f"未设置 {provider} 的 API Key。请设置环境变量 DEEPSEEK_API_KEY。")
 
     try:
         from litellm import completion

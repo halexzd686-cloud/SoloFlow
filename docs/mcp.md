@@ -17,6 +17,8 @@ claude mcp add --scope local soloflow -- uv run sf mcp
 claude mcp get soloflow
 ```
 
+这里的 Claude Code 仅作为 MCP 客户端连接本地 SoloFlow Server；SoloFlow 的模型调用仍固定为 `deepseek/deepseek-v4-flash`，不会因此调用其他模型供应商 API。
+
 SoloFlow 同时支持 `initialize` / `notifications/initialized` 生命周期和新版 `server/discover`，便于不同协议代际的客户端接入。
 
 ## Tools

@@ -1,12 +1,12 @@
 # SoloFlow Project Status
 
-> Version: 1.0.0 | Stage: Stable | Updated: 2026-08-09
+> Version: 1.0.1 candidate | Stage: Local validation | Updated: 2026-08-09
 
 ## Verified locally
 
 - Windows 11, Python 3.12.13。
-- `248 passed`。
-- Ruff check 通过，65 个 Python 文件格式检查通过。
+- `251 passed`。
+- Ruff check 通过，50 个 Python 文件格式检查通过。
 - wheel 和 sdist 可构建。
 - wheel 在全新虚拟环境安装成功。
 - 离开源码目录后可发现 4 个 Skill、2 个 Agent、8 个 Flow，并可 dry-run `blog-pipeline`。
@@ -20,6 +20,7 @@
 - Heartbeat 500 周期加速测试完成 445 次成功和 55 次注入失败，daemon 持续运行且指标一致。
 - Heartbeat 真实 DeepSeek 加速 soak 持续约 67 分钟，2 分钟间隔共完成 33/33 次调用；成功率 100%，无连续失败、空响应、截断输出或日志错误，停止状态与 PID 清理通过。
 - DeepSeek V4 Flash 已完成真实 Skill、Agent、Flow 调用，输出、状态和 token usage 均已验证。
+- v1.0.1 候选版已将内置 Skill、Agent 和缺省 LLM 配置统一为 DeepSeek，README 命令不再隐式要求 Anthropic Key。
 - GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
 - CLI 可安全加载当前工作目录 `.env`，已有进程环境变量优先且不会搜索父目录。
@@ -27,9 +28,14 @@
 
 ## Provider support scope
 
-- DeepSeek 是 v1.0 官方验证和推荐供应商，真实 Skill、Agent、Flow、错误处理和 Heartbeat 链路均已验收。
-- OpenAI 与 Anthropic 保留 LiteLLM 兼容入口和 mock 回归覆盖，但尚未进行付费真实调用，v1.0 将其标记为实验性支持。
-- OpenAI 与 Anthropic 的真实端到端验证移入 v1.1 Roadmap，不作为 v1.0 发布阻塞项。
+- `deepseek/deepseek-v4-flash` 是当前唯一允许的调用目标，真实 Skill、Agent、Flow、错误处理和 Heartbeat 链路均已验收。
+- 其他 provider 或 model 会在读取 API Key 和发起网络请求前被拒绝，避免意外产生其他供应商费用。
+
+## Current candidate work
+
+- README 已按“概念解释 → dry-run → 配置 → 真实 Skill → 完整 Flow”重构。
+- `docs/tutorial.md` 新增 TrailLight Mini 虚拟案例、预期行为、恢复教学和常见问题。
+- `v1.0.1` 尚未创建 Git 标签、GitHub Release 或 PyPI 发行版；完成本地与 CI 验收后再发布。
 
 ## Not yet externally verified
 

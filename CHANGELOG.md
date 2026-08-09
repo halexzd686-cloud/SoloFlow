@@ -2,7 +2,28 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/)，版本变化按 Added、Changed、Fixed、Security 分类记录。
 
-## Unreleased
+## 1.0.1 - Unreleased
+
+### Changed
+
+- 内置 4 个 Skill、`code-guardian` Agent 及未显式配置时的 LLM 默认值统一改为已验证的 `deepseek/deepseek-v4-flash`。
+- README 改为面向首次使用者的渐进式结构，增加概念类比、五分钟入门和 TrailLight Mini 虚拟案例。
+- 快速开始文档明确 DeepSeek-only 配置路径，并链接新的完整案例教程。
+
+### Added
+
+- 新增 `docs/tutorial.md`，覆盖 Skill、Agent、Flow dry-run、真实调用、运行记录、断点恢复、安全配置和常见问题。
+- 新增内置 Skill 默认供应商回归测试，防止教程与发行包配置再次偏离。
+
+### Fixed
+
+- 缺少 API Key 时的错误提示现在明确要求 `DEEPSEEK_API_KEY`。
+- 非 `deepseek/deepseek-v4-flash` 的调用目标会在读取密钥和网络请求前被拒绝。
+
+### Verification
+
+- 本地 251 项测试通过，Ruff check 与 50 个 Python 文件 format check 通过。
+- `content-writer` Skill、`content-editor` Agent 与 `blog-pipeline` Flow 的 DeepSeek dry-run 均通过。
 
 ## 1.0.0 - 2026-08-09
 
@@ -15,7 +36,7 @@
 
 ### Changed
 
-- v1.0 明确以 DeepSeek 为官方验证和推荐供应商；OpenAI、Anthropic 保留兼容入口并标记为实验性支持，真实端到端验证移入 v1.1 Roadmap。
+- v1.0 明确以 DeepSeek 为官方验证和推荐供应商，其他供应商不在正式验收范围内。
 
 ### Verification
 

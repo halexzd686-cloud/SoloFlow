@@ -530,7 +530,7 @@ def _tool_run_skill(args: dict) -> str:
         )
         return result
     except RuntimeError as e:
-        return f"执行失败: {e}\n请设置 API Key 环境变量（如 ANTHROPIC_API_KEY）。"
+        return f"执行失败: {e}\n请设置当前 Skill 供应商对应的 API Key 环境变量。"
 
 
 def _tool_list_flows(args: dict) -> str:

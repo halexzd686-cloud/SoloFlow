@@ -4,7 +4,7 @@ from pathlib import Path
 
 from soloflow.cli.agent import _list_agents
 from soloflow.core import assets
-from soloflow.core.skill_loader import find_skill, list_available_skills
+from soloflow.core.skill_loader import find_skill, list_available_skills, load_skill
 
 
 def _write_skill(root: Path, name: str) -> Path:
@@ -86,3 +86,15 @@ def test_agent_list_uses_bundled_assets_outside_project(monkeypatch, tmp_path):
     monkeypatch.setattr(assets, "_BUNDLED_ROOT", bundled_root)
 
     assert [agent["name"] for agent in _list_agents()] == ["bundled-agent"]
+
+
+def test_bundled_skills_use_verified_deepseek_defaults():
+    """安装包自带教程资产应只要求官方验证的 DeepSeek Key。"""
+    source_root = Path(__file__).resolve().parents[1] / "skills"
+    bundled_skills = sorted(source_root.rglob("SKILL.md"))
+
+    assert bundled_skills
+    for path in bundled_skills:
+        skill = load_skill(path)
+        assert skill.config.provider == "deepseek"
+        assert skill.config.model == "deepseek-v4-flash"

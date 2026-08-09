@@ -22,8 +22,8 @@ heartbeat:
   interval: 6h
   trigger_prompt: ""
 config:
-  model: claude-sonnet-4-20250514
-  provider: anthropic
+  model: deepseek-v4-flash
+  provider: deepseek
   temperature: 0.2
 rules:
   - "不放过任何安全问题，即使可能冒犯作者"

@@ -85,14 +85,14 @@ def test_agent_config_override():
     agent = AgentDefinition(
         name="custom-config",
         config=AgentConfigOverride(
-            model="gpt-4o",
-            provider="openai",
+            model="deepseek-v4-flash",
+            provider="deepseek",
             temperature=0.3,
             max_tokens=8192,
         ),
     )
-    assert agent.config.model == "gpt-4o"
-    assert agent.config.provider == "openai"
+    assert agent.config.model == "deepseek-v4-flash"
+    assert agent.config.provider == "deepseek"
     assert agent.config.temperature == 0.3
     assert agent.config.max_tokens == 8192
 
@@ -140,7 +140,7 @@ def test_agent_yaml_roundtrip():
             interval="2h",
             trigger_prompt="Summarize recent activity.",
         ),
-        config=AgentConfigOverride(model="claude-sonnet-4-20250514", temperature=0.5),
+        config=AgentConfigOverride(model="deepseek-v4-flash", temperature=0.5),
     )
 
     # 序列化

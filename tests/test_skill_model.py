@@ -55,7 +55,8 @@ def test_skill_defaults():
         meta=SkillMeta(name="minimal", description="最小示例"),
     )
 
-    assert skill.config.model == "claude-sonnet-4-20250514"
+    assert skill.config.model == "deepseek-v4-flash"
+    assert skill.config.provider == "deepseek"
     assert skill.config.temperature == 0.7
     assert skill.costar.context == ""
     assert skill.iteration.version == 0

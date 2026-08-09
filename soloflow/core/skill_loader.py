@@ -180,8 +180,8 @@ def load_skill(path: str | Path) -> SkillFile:
             response_format=str(frontmatter.get("response_format", "")),
         ),
         config=SkillConfig(
-            model=str(frontmatter.get("model", "claude-sonnet-4-20250514")),
-            provider=str(frontmatter.get("provider", "anthropic")),
+            model=str(frontmatter.get("model", "deepseek-v4-flash")),
+            provider=str(frontmatter.get("provider", "deepseek")),
             temperature=float(frontmatter.get("temperature", 0.7)),
             max_tokens=int(frontmatter.get("max_tokens", 4096)),
         ),
