@@ -9,7 +9,7 @@
 
 SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
 
-当前版本为 `1.0.0rc3`。本地 244 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install，以及 Heartbeat 故障注入与真实环境加速 soak 均已通过；其他 LLM 供应商仍待最终确认，详见[项目状态](STATUS.md)。
+当前版本为 `1.0.0rc4`。本地 248 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install，以及 Heartbeat 故障注入与真实环境加速 soak 均已通过；其他 LLM 供应商仍待最终确认，详见[项目状态](STATUS.md)。
 
 ## 它解决什么问题
 
@@ -80,7 +80,9 @@ $env:DEEPSEEK_API_KEY = "<your-key>"
 uv run sf skill run content-writer "AI Agent 落地"
 ```
 
-不要把 API Key 写入 Skill、Flow、MCP 配置或提交到 Git。
+也可以复制 `.env.example` 为当前工作目录下的 `.env` 并填写实际使用的供应商。SoloFlow 只读取当前目录的 `.env`，不会向父目录搜索，也不会覆盖系统或 Shell 已设置的环境变量。
+
+不要把 API Key 写入 Skill、Flow、MCP 配置或提交到 Git；`.env` 已默认加入忽略规则。
 
 ## 主要能力
 
@@ -146,7 +148,7 @@ uv run ruff format --check soloflow tests
 uv build
 ```
 
-当前本地基线：244 项测试通过，63 个 Python 文件格式检查通过。远程 Windows/Linux × Python 3.12/3.13 矩阵和 Ubuntu clean-wheel smoke 已通过；最新结果以 GitHub Actions 页面为准。
+当前本地基线：248 项测试通过，65 个 Python 文件格式检查通过。远程 Windows/Linux × Python 3.12/3.13 矩阵和 Ubuntu clean-wheel smoke 已通过；最新结果以 GitHub Actions 页面为准。
 
 ## Roadmap
 

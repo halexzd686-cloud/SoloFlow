@@ -6,6 +6,7 @@ from rich.panel import Panel
 
 from soloflow import __version__
 from soloflow.cli import agent, flow, registry, skill
+from soloflow.config import load_project_env
 
 app = typer.Typer(
     name="soloflow",
@@ -154,6 +155,7 @@ def callback(
     将专家经验封装为可复用的 SKILL.md 文件，
     让 AI 按标准干活。
     """
+    load_project_env()
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
     ctx.obj["quiet"] = quiet

@@ -29,7 +29,7 @@ uv run sf flow run blog-pipeline -i topic="测试主题" --dry-run
 
 ## Configure a provider
 
-使用环境变量提供凭据，不要写入项目文件。PowerShell 示例：
+可以使用 Shell 环境变量提供凭据。PowerShell 示例：
 
 ```powershell
 $env:OPENAI_API_KEY = "<your-key>"
@@ -38,6 +38,15 @@ $env:DEEPSEEK_API_KEY = "<your-key>"
 ```
 
 只需要配置实际使用的供应商。Skill 中的 `provider` 和 `model` 决定调用目标。
+
+也可以使用项目本地 `.env`：
+
+```powershell
+Copy-Item .env.example .env
+# 然后编辑 .env，只填写实际使用的供应商
+```
+
+SoloFlow 只加载当前工作目录的 `.env`，不会向父目录搜索，也不会覆盖已有的进程环境变量。`.env` 默认不会进入 Git；不要把任何真实密钥提交到仓库。
 
 ## Run and resume a Flow
 

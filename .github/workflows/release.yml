@@ -37,6 +37,14 @@ jobs:
       - name: Generate checksums
         run: sha256sum dist/* > dist/SHA256SUMS
 
+      - name: Upload Python distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-distributions
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -46,3 +54,22 @@ jobs:
             args+=(--prerelease)
           fi
           gh release create "${GITHUB_REF_NAME}" dist/* "${args[@]}"
+
+  publish-pypi:
+    if: ${{ !contains(github.ref_name, '-rc.') }}
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/soloflow
+    permissions:
+      id-token: write
+    steps:
+      - name: Download Python distributions
+        uses: actions/download-artifact@v7
+        with:
+          name: python-distributions
+          path: dist
+
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

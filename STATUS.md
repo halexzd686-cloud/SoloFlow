@@ -1,12 +1,12 @@
 # SoloFlow Project Status
 
-> Version: 1.0.0rc3 | Stage: v1.0 Release Candidate | Updated: 2026-08-09
+> Version: 1.0.0rc4 | Stage: v1.0 Release Candidate | Updated: 2026-08-09
 
 ## Verified locally
 
 - Windows 11, Python 3.12.13。
-- `244 passed`。
-- Ruff check 通过，63 个 Python 文件格式检查通过。
+- `248 passed`。
+- Ruff check 通过，65 个 Python 文件格式检查通过。
 - wheel 和 sdist 可构建。
 - wheel 在全新虚拟环境安装成功。
 - 离开源码目录后可发现 4 个 Skill、2 个 Agent、8 个 Flow，并可 dry-run `blog-pipeline`。
@@ -22,6 +22,8 @@
 - DeepSeek V4 Flash 已完成真实 Skill、Agent、Flow 调用，输出、状态和 token usage 均已验证。
 - GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
+- CLI 可安全加载当前工作目录 `.env`，已有进程环境变量优先且不会搜索父目录。
+- PyPI 项目链接元数据已补齐；稳定标签的 Trusted Publishing 工作流已准备，RC 标签不会上传 PyPI。
 
 ## Not yet externally verified
 
