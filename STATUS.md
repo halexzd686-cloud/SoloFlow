@@ -15,6 +15,7 @@
 - `164 passed`。
 - Ruff check 通过，34 个 Python 文件 format check 通过。
 - wheel 与 sdist 构建通过。
+- GitHub Actions 的 Windows/Linux × Python 3.12/3.13 测试矩阵与 Ubuntu build/clean-wheel smoke 通过。
 - wheel 在新建隔离环境安装成功，共安装 24 个包；离开源码目录后可发现内置资产并执行 `sf run content-writer "测试主题" --dry-run`。
 - README 48 行；`sf --help` 顶层命令 7 个。
 - `soloflow/` Python 代码 3,476 行，无空包、无 `core → cli` 反向导入。
@@ -35,7 +36,6 @@
 ## Not yet verified for this candidate
 
 - 重构后的 `httpx` 客户端尚未执行付费的真实 DeepSeek 请求；协议、流式 SSE、usage、重试、认证失败和提前拒绝均由无网络 mock 测试覆盖。
-- GitHub Actions 的 Windows/Linux × Python 3.12/3.13 矩阵尚未对 `dev` 候选提交运行。
 - v2.0.0 尚未合并 `main`、创建 tag、GitHub Release 或发布到 PyPI。
 
 ## Known limitations
