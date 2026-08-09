@@ -137,7 +137,7 @@ def _save_run_state(
 ) -> None:
     """将 Flow 运行状态持久化到 .soloflow/runs/<run-id>.json。
 
-    TUI 轮询读取这些文件以显示实时进度。
+    Rich 视图读取这些文件以显示实时进度。
     恢复执行时需 step_outputs 和 inputs 重建上下文。
 
     BUG-FLOW-003 修复：state JSON 中的 step_outputs 是截断摘要（TUI 展示用），
@@ -167,7 +167,7 @@ def _save_run_state(
         steps_dir.mkdir(parents=True, exist_ok=True)
         for step_id, output in step_outputs.items():
             (steps_dir / f"{step_id}.txt").write_text(output, encoding="utf-8")
-        # 摘要截断 2000 字符（TUI 展示用）
+        # 摘要截断 2000 字符（实时视图展示用）
         data["step_outputs"] = {k: v[:2000] for k, v in step_outputs.items()}
     if inputs:
         data["inputs"] = inputs
@@ -725,10 +725,49 @@ def run_flow(
     # P2-004: 本次 attempt 新增 token 累计器
     attempt_tokens_acc = {"n": 0}
 
+    for step in flow.steps:
+        result.steps[step.id] = StepResult(step_id=step.id, status="pending")
+
+    def persist_progress() -> None:
+        """Persist current state for recovery and the read-only live view."""
+        step_outputs = {
+            sid: item.output
+            for sid, item in result.steps.items()
+            if item.status == "done" and item.output
+        }
+        steps_state = {
+            sid: {
+                "status": item.status,
+                "error": item.error,
+                "duration": item.duration,
+                "tokens": item.tokens,
+                "skill": step_map[sid].skill,
+                "depends_on": step_map[sid].depends_on,
+            }
+            for sid, item in result.steps.items()
+        }
+        _save_run_state(
+            flow.name,
+            run_id,
+            steps_state,
+            result.status,
+            time.time() - t0,
+            result.total_tokens,
+            step_outputs=step_outputs,
+            inputs=user_inputs,
+            attempt=_attempt,
+            outputs=result.outputs,
+            attempt_tokens=attempt_tokens_acc["n"],
+        )
+
+    persist_progress()
+
     async def execute_step(step: FlowStep) -> StepResult:
         """异步执行单个步骤。"""
         async with semaphore:
             sr = StepResult(step_id=step.id, status="running")
+            result.steps[step.id] = sr
+            persist_progress()
             t1 = time.time()
 
             # 断点恢复：跳过已完成的步骤
@@ -885,36 +924,7 @@ def run_flow(
                 if sr.step_id not in resume_skip and sr.status == "done":
                     attempt_tokens_acc["n"] += sr.tokens or 0
 
-                # 实时保存运行状态（含 step outputs 供断点恢复）
-                step_outputs = {
-                    sid: r.output
-                    for sid, r in result.steps.items()
-                    if r.status == "done" and r.output
-                }
-                # P2-004: steps_state 保存每步 tokens，resume 可恢复历史 token
-                steps_state = {
-                    sid: {
-                        "status": r.status,
-                        "error": r.error,
-                        "duration": r.duration,
-                        "tokens": r.tokens,
-                    }
-                    for sid, r in result.steps.items()
-                }
-                elapsed = time.time() - t0
-                _save_run_state(
-                    flow.name,
-                    run_id,
-                    steps_state,
-                    result.status,
-                    elapsed,
-                    result.total_tokens,
-                    step_outputs=step_outputs,
-                    inputs=user_inputs,
-                    attempt=_attempt,
-                    outputs=result.outputs,
-                    attempt_tokens=attempt_tokens_acc["n"],
-                )
+                persist_progress()
             else:
                 console.print(f"[red]Unexpected error: {sr}[/red]")
                 result.status = "failed"
@@ -926,7 +936,13 @@ def run_flow(
             await run_level(level)
 
     try:
-        _asyncio_mod.run(run_all())
+        if stream:
+            _asyncio_mod.run(run_all())
+        else:
+            from soloflow.live_view import live_flow
+
+            with live_flow(run_id, RUNS_DIR):
+                _asyncio_mod.run(run_all())
     except Exception as e:
         console.print(f"[red]Fatal error: {e}[/red]")
         result.status = "failed"
@@ -958,32 +974,7 @@ def run_flow(
 
     console.print(Panel.fit(status_text, border_style=status_color))
 
-    # 最终保存运行状态（含 step outputs 供断点恢复）
-    step_outputs_final = {
-        sid: r.output for sid, r in result.steps.items() if r.status == "done" and r.output
-    }
-    steps_state = {
-        sid: {
-            "status": r.status,
-            "error": r.error,
-            "duration": r.duration,
-            "tokens": r.tokens,
-        }
-        for sid, r in result.steps.items()
-    }
-    _save_run_state(
-        flow.name,
-        run_id,
-        steps_state,
-        result.status,
-        result.total_duration,
-        result.total_tokens,
-        step_outputs=step_outputs_final,
-        inputs=user_inputs,
-        attempt=_attempt,
-        outputs=result.outputs,
-        attempt_tokens=attempt_tokens_acc["n"],
-    )
+    persist_progress()
 
     return result
 

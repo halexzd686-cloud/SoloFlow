@@ -169,9 +169,9 @@ def init(
     out_path = Path(output) / name
     saved_path = save_skill(skill, out_path)
 
-    console.print(f"\n[green][OK] Skill 已创建: {saved_path}[/green]")
+    console.print(f"\n[green][OK] Created Skill: {saved_path}[/green]")
     console.print("[green][OK] 验证通过[/green]")
-    console.print(f"\n[dim]下一步: sf skill run {name} <你的任务>[/dim]")
+    console.print(f"[dim]Next: sf run {name} <task>[/dim]")
 
 
 @app.command()

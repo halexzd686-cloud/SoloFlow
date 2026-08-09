@@ -49,6 +49,7 @@ uvx soloflow run content-writer "为我的产品写一篇介绍" --dry-run
 | `sf skill init <name>` | 创建 Skill |
 | `sf flow run <name> -i key=value` | 运行 Flow |
 | `sf flow runs` | 查看 Flow 运行记录 |
+| `sf flow watch <run-id>` | 实时查看 Flow 进度 |
 | `sf flow resume <run-id>` | 从失败处恢复 Flow |
 | `sf agent run <name> <task>` | 用 Agent 执行任务 |
 
