@@ -69,8 +69,9 @@ class SkillTest(BaseModel):
 class SkillConfig(BaseModel):
     """Skill 的 LLM 配置。"""
 
+    base_url: str = Field(default="https://api.deepseek.com", description="兼容 API 地址")
+    api_key_env: str = Field(default="DEEPSEEK_API_KEY", description="API Key 环境变量名")
     model: str = Field(default="deepseek-v4-flash", description="默认模型")
-    provider: str = Field(default="deepseek", description="默认 LLM 提供商")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="温度参数")
     max_tokens: int = Field(default=4096, gt=0, description="最大输出 token 数")
 

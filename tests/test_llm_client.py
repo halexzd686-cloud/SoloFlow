@@ -1,104 +1,95 @@
-"""测试 LLM 调用层（GAP-LLM-001/002 回归）。
+"""DeepSeek client tests use httpx.MockTransport and never access the network."""
 
-所有测试通过 mock litellm 完成，不发起真实网络调用。
-"""
-
-from types import SimpleNamespace
+import json
 from unittest.mock import patch
 
+import httpx
 import pytest
 
-from soloflow.llm.client import LLMResult, call_llm, call_llm_full, call_llm_stream
+from soloflow.llm.client import LLMResult, chat
+
+_REAL_HTTPX_CLIENT = httpx.Client
+_MESSAGES = [{"role": "user", "content": "test"}]
 
 
-def _fake_completion_response(
+def _response(
+    request: httpx.Request,
+    *,
     content: str = "hello world",
     prompt_tokens: int = 10,
     completion_tokens: int = 5,
-    model: str = "deepseek-v4-flash",
-    request_id: str = "req-123",
-) -> SimpleNamespace:
-    """构造一个模拟的 LiteLLM completion 响应对象。"""
-    return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
-        usage=SimpleNamespace(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=prompt_tokens + completion_tokens,
-        ),
-        model=model,
-        id=request_id,
+    usage: bool = True,
+) -> httpx.Response:
+    data = {
+        "id": "req-123",
+        "model": "deepseek-v4-flash",
+        "choices": [{"message": {"content": content}}],
+    }
+    if usage:
+        data["usage"] = {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        }
+    return httpx.Response(200, json=data, request=request)
+
+
+def _client_patch(handler, constructor_calls: list[dict] | None = None):
+    transport = httpx.MockTransport(handler)
+
+    def create_client(**kwargs):
+        if constructor_calls is not None:
+            constructor_calls.append(kwargs)
+        return _REAL_HTTPX_CLIENT(transport=transport, **kwargs)
+
+    return patch("soloflow.llm.client.httpx.Client", side_effect=create_client)
+
+
+def test_chat_returns_structured_result_and_sends_expected_request():
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["authorization"] = request.headers["Authorization"]
+        captured["payload"] = json.loads(request.content)
+        return _response(request)
+
+    with (
+        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
+        _client_patch(handler),
+    ):
+        result = chat(_MESSAGES)
+
+    assert result == LLMResult(
+        content="hello world",
+        prompt_tokens=10,
+        completion_tokens=5,
+        total_tokens=15,
+        model="deepseek-v4-flash",
+        request_id="req-123",
     )
+    assert captured["url"] == "https://api.deepseek.com/chat/completions"
+    assert captured["authorization"] == "Bearer sk-test"
+    assert captured["payload"]["messages"] == _MESSAGES
+    assert captured["payload"]["model"] == "deepseek-v4-flash"
+    assert captured["payload"]["stream"] is False
 
 
-# ── call_llm_full: 结构化结果 ──
-
-
-def test_call_llm_full_returns_structured_result():
-    """GAP-LLM-001: 返回 LLMResult 含 content + usage + model + request_id。"""
+def test_chat_handles_missing_usage():
     with (
         patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", return_value=_fake_completion_response()),
+        _client_patch(lambda request: _response(request, usage=False)),
     ):
-        result = call_llm_full(prompt="test")
+        result = chat(_MESSAGES)
 
-    assert isinstance(result, LLMResult)
     assert result.content == "hello world"
-    assert result.prompt_tokens == 10
-    assert result.completion_tokens == 5
-    assert result.total_tokens == 15
-    assert result.model == "deepseek-v4-flash"
-    assert result.request_id == "req-123"
-    assert result.provider == "deepseek"
-
-
-def test_call_llm_full_usage_dict_form():
-    """GAP-LLM-001: usage 为 dict 形态也能解析。"""
-    resp = _fake_completion_response()
-    resp.usage = {"prompt_tokens": 20, "completion_tokens": 7, "total_tokens": 27}
-
-    with (
-        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", return_value=resp),
-    ):
-        result = call_llm_full(prompt="test")
-
-    assert result.total_tokens == 27
-    assert result.prompt_tokens == 20
-
-
-def test_call_llm_full_no_usage():
-    """GAP-LLM-001: 响应无 usage 时不崩溃，token 为 0。"""
-    resp = _fake_completion_response()
-    resp.usage = None
-
-    with (
-        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", return_value=resp),
-    ):
-        result = call_llm_full(prompt="test")
-
     assert result.total_tokens == 0
-    assert result.content == "hello world"
 
 
-def test_call_llm_backward_compat():
-    """GAP-LLM-001: call_llm 仍返回纯字符串（向后兼容）。"""
-    with (
-        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", return_value=_fake_completion_response()),
-    ):
-        content = call_llm(prompt="test")
-
-    assert content == "hello world"
-    assert isinstance(content, str)
-
-
-def test_call_llm_missing_api_key():
-    """缺少 API Key 时给出 .env、环境变量和获取地址。"""
+def test_chat_missing_api_key_has_actionable_message():
     with patch("soloflow.llm.client._get_api_key", return_value=None):
         with pytest.raises(RuntimeError) as exc_info:
-            call_llm_full(prompt="test")
+            chat(_MESSAGES)
 
     message = str(exc_info.value)
     assert "DEEPSEEK_API_KEY=你的密钥" in message
@@ -108,213 +99,123 @@ def test_call_llm_missing_api_key():
 
 
 @pytest.mark.parametrize(
-    ("provider", "model"),
-    [("unsupported", "deepseek-v4-flash"), ("deepseek", "unsupported-model")],
+    "overrides",
+    [
+        {"base_url": "https://example.com"},
+        {"api_key_env": "OTHER_API_KEY"},
+        {"model": "unsupported-model"},
+    ],
 )
-def test_call_llm_rejects_unsupported_target(provider, model):
-    """当前版本在读取密钥和发起网络请求前拒绝非指定目标。"""
-    with patch("litellm.completion") as mock_completion:
+def test_chat_rejects_non_whitelisted_target_before_reading_key(overrides):
+    with patch("soloflow.llm.client._get_api_key") as get_key:
         with pytest.raises(RuntimeError, match="仅支持 deepseek/deepseek-v4-flash"):
-            call_llm_full(prompt="test", provider=provider, model=model)
-        mock_completion.assert_not_called()
+            chat(_MESSAGES, **overrides)
+        get_key.assert_not_called()
 
 
-def test_call_llm_dry_run():
-    """dry_run 不调用 LLM，返回占位结果。"""
-    with patch("litellm.completion") as mock_completion:
-        result = call_llm_full(prompt="test", dry_run=True)
-        mock_completion.assert_not_called()
+def test_chat_dry_run_reads_no_key_and_makes_no_request():
+    with (
+        patch("soloflow.llm.client._get_api_key") as get_key,
+        patch("soloflow.llm.client.httpx.Client") as client,
+    ):
+        result = chat(_MESSAGES, dry_run=True)
 
-    assert result.content == "[DRY RUN]"
-    assert result.total_tokens == 0
-    assert result.provider == "deepseek"
-    assert result.model == "deepseek-v4-flash"
-
-
-# ── GAP-LLM-003: 重试 / 退避 / 超时 ──
+    get_key.assert_not_called()
+    client.assert_not_called()
+    assert result == LLMResult(content="[DRY RUN]", model="deepseek-v4-flash")
 
 
-class _RateLimitError(Exception):
-    """模拟 litellm 限流异常。"""
+def test_chat_retries_rate_limit_with_exponential_backoff():
+    attempts = {"count": 0}
 
-
-class _AuthError(Exception):
-    """模拟不可重试的认证错误。"""
-
-
-def test_call_llm_full_retries_on_rate_limit():
-    """GAP-LLM-003: 限流错误自动重试，最终成功。"""
-    from soloflow.llm.client import _is_retryable_error
-
-    assert _is_retryable_error(_RateLimitError("rate limit"))
-
-    attempts = {"n": 0}
-
-    def flaky_completion(**kwargs):
-        attempts["n"] += 1
-        if attempts["n"] < 3:
-            raise _RateLimitError("rate limit exceeded")
-        return _fake_completion_response(content="ok")
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            return httpx.Response(429, request=request)
+        return _response(request, content="ok")
 
     with (
         patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", side_effect=flaky_completion),
-        patch("soloflow.llm.client.time.sleep") as mock_sleep,
+        _client_patch(handler),
+        patch("soloflow.llm.client.time.sleep") as sleep,
     ):
-        result = call_llm_full(prompt="test", max_retries=3)
+        result = chat(_MESSAGES, max_retries=3)
 
     assert result.content == "ok"
-    assert attempts["n"] == 3
-    # 指数退避: 1s + 2s
-    assert [c.args[0] for c in mock_sleep.call_args_list] == [1, 2]
+    assert attempts["count"] == 3
+    assert [call.args[0] for call in sleep.call_args_list] == [1, 2]
 
 
-def test_call_llm_full_retries_exhausted():
-    """GAP-LLM-003: 重试耗尽后抛出最后一次异常。"""
-    attempts = {"n": 0}
+def test_chat_does_not_retry_auth_failure():
+    attempts = {"count": 0}
 
-    def always_fail(**kwargs):
-        attempts["n"] += 1
-        raise _RateLimitError("rate limit forever")
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["count"] += 1
+        return httpx.Response(401, request=request)
 
     with (
         patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", side_effect=always_fail),
-        patch("soloflow.llm.client.time.sleep"),
+        _client_patch(handler),
+        patch("soloflow.llm.client.time.sleep") as sleep,
     ):
-        with pytest.raises(_RateLimitError):
-            call_llm_full(prompt="test", max_retries=2)
+        with pytest.raises(httpx.HTTPStatusError):
+            chat(_MESSAGES, max_retries=2)
 
-    assert attempts["n"] == 3  # 1 次初始 + 2 次重试
+    assert attempts["count"] == 1
+    sleep.assert_not_called()
 
 
-def test_call_llm_full_no_retry_on_auth_error():
-    """GAP-LLM-003: 不可重试错误（认证失败）立即抛出，不重试。"""
-    from soloflow.llm.client import _is_retryable_error
+def test_chat_passes_timeout_to_httpx_client():
+    constructor_calls: list[dict] = []
+    with (
+        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
+        _client_patch(lambda request: _response(request), constructor_calls),
+    ):
+        chat(_MESSAGES, timeout=45.0)
 
-    assert not _is_retryable_error(_AuthError("invalid key"))
+    assert constructor_calls == [{"timeout": 45.0}]
 
-    attempts = {"n": 0}
 
-    def always_auth_fail(**kwargs):
-        attempts["n"] += 1
-        raise _AuthError("invalid api key")
+def test_chat_streams_chunks_and_collects_usage():
+    events = [
+        {
+            "id": "req-stream",
+            "model": "deepseek-v4-flash",
+            "choices": [{"delta": {"content": "Hel"}}],
+        },
+        {"choices": [{"delta": {"content": "lo"}}]},
+        {
+            "choices": [],
+            "usage": {"prompt_tokens": 30, "completion_tokens": 12, "total_tokens": 42},
+        },
+    ]
+    body = "".join(f"data: {json.dumps(event)}\n\n" for event in events) + "data: [DONE]\n\n"
+    captured_chunks: list[str] = []
+    captured_payload: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content))
+        return httpx.Response(200, text=body, request=request)
 
     with (
         patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", side_effect=always_auth_fail),
-        patch("soloflow.llm.client.time.sleep") as mock_sleep,
+        _client_patch(handler),
     ):
-        with pytest.raises(_AuthError):
-            call_llm_full(prompt="test", max_retries=2)
+        result = chat(_MESSAGES, stream=True, on_chunk=captured_chunks.append)
 
-    assert attempts["n"] == 1  # 不重试
-    mock_sleep.assert_not_called()
-
-
-def test_call_llm_full_passes_timeout():
-    """GAP-LLM-003: timeout 参数透传给 LiteLLM。"""
-    with (
-        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", return_value=_fake_completion_response()) as mock_completion,
-    ):
-        call_llm_full(prompt="test", timeout=45.0)
-
-    assert mock_completion.call_args.kwargs["timeout"] == 45.0
-
-
-# ── call_llm_stream: 流式 + usage 回调 ──
-
-
-def _fake_stream_response(chunks_text, usage=None):
-    """构造模拟流式 chunk 序列。"""
-    chunks = []
-    for text in chunks_text:
-        chunks.append(
-            SimpleNamespace(
-                choices=[SimpleNamespace(delta=SimpleNamespace(content=text))],
-                usage=None,
-            )
-        )
-    if usage:
-        # 最后一个 chunk 携带 usage
-        chunks.append(
-            SimpleNamespace(
-                choices=[],
-                usage=SimpleNamespace(
-                    prompt_tokens=usage[0],
-                    completion_tokens=usage[1],
-                    total_tokens=usage[0] + usage[1],
-                ),
-            )
-        )
-    return iter(chunks)
-
-
-def test_call_llm_stream_yields_chunks():
-    """流式输出逐个 chunk 产出。"""
-    with (
-        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", return_value=_fake_stream_response(["Hel", "lo ", "world"])),
-    ):
-        parts = list(call_llm_stream(prompt="test"))
-
-    assert parts == ["Hel", "lo ", "world"]
-
-
-def test_call_llm_stream_on_usage_callback():
-    """GAP-LLM-001: 流式结束通过 on_usage 回调提供真实 usage（非 chunk 数）。"""
-    captured = []
-
-    with (
-        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch(
-            "litellm.completion", return_value=_fake_stream_response(["Hel", "lo"], usage=(30, 12))
-        ),
-    ):
-        parts = list(
-            call_llm_stream(
-                prompt="test",
-                on_usage=lambda r: captured.append(r),
-            )
-        )
-
-    assert parts == ["Hel", "lo"]
-    assert len(captured) == 1
-    usage = captured[0]
-    assert isinstance(usage, LLMResult)
-    # 真实 usage 30/12，而不是 chunk 数 2
-    assert usage.prompt_tokens == 30
-    assert usage.completion_tokens == 12
-    assert usage.total_tokens == 42
-
-
-def test_call_llm_stream_no_usage():
-    """流式响应无 usage 时回调收到全 0 结果，不崩溃。"""
-    captured = []
-
-    with (
-        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
-        patch("litellm.completion", return_value=_fake_stream_response(["x"])),
-    ):
-        list(call_llm_stream(prompt="test", on_usage=lambda r: captured.append(r)))
-
-    assert len(captured) == 1
-    assert captured[0].total_tokens == 0
-
-
-# ── Flow 引擎 token 累计 ──
+    assert captured_chunks == ["Hel", "lo"]
+    assert result.content == "Hello"
+    assert result.total_tokens == 42
+    assert result.request_id == "req-stream"
+    assert captured_payload["stream_options"] == {"include_usage": True}
 
 
 def test_flow_engine_accumulates_tokens(monkeypatch, tmp_path):
-    """GAP-LLM-001: Flow 步骤的 tokens 累计到 FlowResult.total_tokens。"""
-    from unittest.mock import patch as mpatch
-
+    """Flow steps preserve usage returned by the shared Runner boundary."""
     from soloflow.core.flow_engine import run_flow
     from soloflow.models.flow import FlowDefinition, FlowStep
 
     monkeypatch.chdir(tmp_path)
-
     flow = FlowDefinition(
         name="token-accum",
         steps=[
@@ -326,15 +227,14 @@ def test_flow_engine_accumulates_tokens(monkeypatch, tmp_path):
     def fake_build_step_prompt(step, context):
         return f"PROMPT_{step.id}"
 
-    def fake_call_llm_full(prompt, **kwargs):
-        # 每个步骤返回不同 token 数
+    def fake_execute_prompt(prompt, **kwargs):
         if "PROMPT_a" in prompt:
             return LLMResult(content="A", total_tokens=100)
         return LLMResult(content="B", total_tokens=250)
 
     with (
-        mpatch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        mpatch("soloflow.core.flow_engine.execute_prompt", fake_call_llm_full),
+        patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_execute_prompt),
     ):
         result = run_flow(flow)
 

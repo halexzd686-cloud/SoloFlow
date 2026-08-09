@@ -57,12 +57,13 @@ def list_agents() -> list[dict]:
 def resolve_llm_config(
     config: AgentConfigOverride | None,
     fallback: SkillConfig,
-) -> tuple[str, str, float, int]:
+) -> tuple[str, str, str, float, int]:
     """Apply explicit Agent values over the primary Skill configuration."""
     cfg = config or AgentConfigOverride()
     return (
+        cfg.base_url or fallback.base_url,
+        cfg.api_key_env or fallback.api_key_env,
         cfg.model or fallback.model,
-        cfg.provider or fallback.provider,
         cfg.temperature if cfg.temperature is not None else fallback.temperature,
         cfg.max_tokens if cfg.max_tokens is not None else fallback.max_tokens,
     )
@@ -113,12 +114,15 @@ def run_agent(
         return ["[DRY RUN]"]
 
     primary = loaded_skills[0][1]
-    model, provider, temperature, max_tokens = resolve_llm_config(agent.config, primary.config)
+    base_url, api_key_env, model, temperature, max_tokens = resolve_llm_config(
+        agent.config, primary.config
+    )
     return run_prompt_versions(
         prompt,
         label=agent.name,
+        base_url=base_url,
+        api_key_env=api_key_env,
         model=model,
-        provider=provider,
         temperature=temperature,
         max_tokens=max_tokens,
         count=count,

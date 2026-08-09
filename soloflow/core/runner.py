@@ -1,4 +1,4 @@
-"""Single prompt rendering and LLM execution path for all assets."""
+"""Single prompt rendering and model execution path for all assets."""
 
 import time
 from collections.abc import Callable
@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from soloflow.live_view import live_skill
-from soloflow.llm.client import LLMResult, call_llm_full, call_llm_stream
+from soloflow.llm.client import LLMResult, chat
 from soloflow.models.skill import SkillFile
 
 console = Console()
@@ -28,8 +28,9 @@ def render_skill_prompt(skill: SkillFile, task: str) -> str:
 def execute_prompt(
     prompt: str,
     *,
+    base_url: str,
+    api_key_env: str,
     model: str,
-    provider: str,
     temperature: float,
     max_tokens: int,
     dry_run: bool = False,
@@ -38,48 +39,29 @@ def execute_prompt(
     max_retries: int = 2,
     on_chunk: Callable[[str], None] | None = None,
 ) -> LLMResult:
-    """Execute one rendered prompt through the only LLM call boundary."""
-    if not stream:
-        return call_llm_full(
-            prompt=prompt,
-            model=model,
-            provider=provider,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            dry_run=dry_run,
-            timeout=timeout,
-            max_retries=max_retries,
-        )
-
-    usage_holder: dict[str, LLMResult] = {}
-    chunks: list[str] = []
-
-    def capture_usage(result: LLMResult) -> None:
-        usage_holder["result"] = result
-
-    for chunk in call_llm_stream(
-        prompt=prompt,
+    """Execute one rendered prompt through the only model call boundary."""
+    return chat(
+        [{"role": "user", "content": prompt}],
+        base_url=base_url,
+        api_key_env=api_key_env,
         model=model,
-        provider=provider,
         temperature=temperature,
         max_tokens=max_tokens,
-        on_usage=capture_usage,
+        dry_run=dry_run,
+        stream=stream,
+        on_chunk=on_chunk,
         timeout=timeout,
-    ):
-        chunks.append(chunk)
-        if on_chunk:
-            on_chunk(chunk)
-
-    usage = usage_holder.get("result", LLMResult(model=model, provider=provider))
-    return usage.model_copy(update={"content": "".join(chunks)})
+        max_retries=max_retries,
+    )
 
 
 def run_prompt_versions(
     prompt: str,
     *,
     label: str,
+    base_url: str,
+    api_key_env: str,
     model: str,
-    provider: str,
     temperature: float,
     max_tokens: int,
     count: int = 1,
@@ -99,8 +81,9 @@ def run_prompt_versions(
                 console.print("[bold]>>> 输出:[/bold]\n")
                 response = execute_prompt(
                     prompt,
+                    base_url=base_url,
+                    api_key_env=api_key_env,
                     model=model,
-                    provider=provider,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     stream=True,
@@ -111,8 +94,9 @@ def run_prompt_versions(
                 with live_skill(label) as view:
                     response = execute_prompt(
                         prompt,
+                        base_url=base_url,
+                        api_key_env=api_key_env,
                         model=model,
-                        provider=provider,
                         temperature=temperature + (index * 0.1 if count > 1 else 0),
                         max_tokens=max_tokens,
                         dry_run=dry_run,
@@ -150,8 +134,9 @@ def run_skill(
     return run_prompt_versions(
         render_skill_prompt(skill, user_input),
         label=skill.meta.name,
+        base_url=skill.config.base_url,
+        api_key_env=skill.config.api_key_env,
         model=skill.config.model,
-        provider=skill.config.provider,
         temperature=skill.config.temperature,
         max_tokens=skill.config.max_tokens,
         count=count,

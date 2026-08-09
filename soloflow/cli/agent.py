@@ -15,6 +15,7 @@ from soloflow.models.agent import AgentDefinition, AgentSoul
 app = typer.Typer(help="Agent 智能体管理", no_args_is_help=True)
 console = Console()
 
+
 @app.command()
 def create(
     name: str = typer.Argument(..., help="Agent 名称 (kebab-case)"),

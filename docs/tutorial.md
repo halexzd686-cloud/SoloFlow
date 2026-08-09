@@ -52,8 +52,9 @@ SoloFlow 使用 `deepseek/deepseek-v4-flash` 生成内容，并显示 token 用�
 ```yaml
 ---
 name: content-writer
+base_url: https://api.deepseek.com
+api_key_env: DEEPSEEK_API_KEY
 model: deepseek-v4-flash
-provider: deepseek
 objective: 根据主题撰写一篇结构清晰的文章
 rules:
   - 不编造数据

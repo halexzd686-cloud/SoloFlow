@@ -106,23 +106,26 @@ def datetime_now_iso() -> str:
 
 # 兜底 LLM 配置（Skill 加载失败时使用）
 _DEFAULT_LLM_MODEL = "deepseek-v4-flash"
-_DEFAULT_LLM_PROVIDER = "deepseek"
+_DEFAULT_LLM_BASE_URL = "https://api.deepseek.com"
+_DEFAULT_LLM_API_KEY_ENV = "DEEPSEEK_API_KEY"
 _DEFAULT_LLM_TEMPERATURE = 0.7
 _DEFAULT_LLM_MAX_TOKENS = 4096
 
 
-def _default_llm_config(skill_config) -> tuple[str, str, float, int]:
+def _default_llm_config(skill_config) -> tuple[str, str, str, float, int]:
     """从 Skill 配置或默认值解析 LLM 配置（skill_config 可为 None）。"""
     if skill_config is not None:
         return (
+            skill_config.base_url,
+            skill_config.api_key_env,
             skill_config.model,
-            skill_config.provider,
             skill_config.temperature,
             skill_config.max_tokens,
         )
     return (
+        _DEFAULT_LLM_BASE_URL,
+        _DEFAULT_LLM_API_KEY_ENV,
         _DEFAULT_LLM_MODEL,
-        _DEFAULT_LLM_PROVIDER,
         _DEFAULT_LLM_TEMPERATURE,
         _DEFAULT_LLM_MAX_TOKENS,
     )
@@ -751,13 +754,17 @@ def _execute_flow(
 
                     agent_def = load_agent(step.agent)
                     fallback = skill_config or SkillConfig()
-                    model, provider, temperature, max_tokens_val = resolve_llm_config(
+                    base_url, api_key_env, model, temperature, max_tokens_val = resolve_llm_config(
                         agent_def.config, fallback
                     )
                 except Exception:
-                    model, provider, temperature, max_tokens_val = _default_llm_config(skill_config)
+                    base_url, api_key_env, model, temperature, max_tokens_val = _default_llm_config(
+                        skill_config
+                    )
             else:
-                model, provider, temperature, max_tokens_val = _default_llm_config(skill_config)
+                base_url, api_key_env, model, temperature, max_tokens_val = _default_llm_config(
+                    skill_config
+                )
 
             # BUG-FLOW-008: 步骤级 timeout/retry（0 = 使用引擎默认）
             step_timeout = step.timeout or 120.0
@@ -768,8 +775,9 @@ def _execute_flow(
                     console.print("  [dim]streaming...[/dim]")
                     llm_result = execute_prompt(
                         prompt,
+                        base_url=base_url,
+                        api_key_env=api_key_env,
                         model=model,
-                        provider=provider,
                         temperature=temperature,
                         max_tokens=max_tokens_val,
                         stream=True,
@@ -784,8 +792,9 @@ def _execute_flow(
                     llm_result = await _asyncio_mod.to_thread(
                         execute_prompt,
                         prompt,
+                        base_url=base_url,
+                        api_key_env=api_key_env,
                         model=model,
-                        provider=provider,
                         temperature=temperature,
                         max_tokens=max_tokens_val,
                         timeout=step_timeout,
