@@ -7,6 +7,8 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+当前稳定版本：**v2.0.0**。从 v1 升级请先查看 [v2.0.0 变更与迁移说明](CHANGELOG.md#200---2026-08-10)。
+
 ## 30 秒跑通
 
 需要 Python 3.12+ 和 [DeepSeek API Key](https://platform.deepseek.com/)。先配置密钥：

@@ -42,7 +42,7 @@
 - wheel 和 sdist 构建通过；wheel 在隔离环境安装后，从源码目录外执行 `sf run content-writer "测试主题" --dry-run` 成功。
 - 隔离安装包含 24 个包；`litellm` 已从项目依赖和锁文件移除。
 - `soloflow/` Python 代码 3,476 行，README 48 行，顶层命令 7 个。
-- 本节记录的是 `dev` 分支发布候选验收；尚未合并 `main`、打标签或发布。
+- v2.0.0 代码已合入 `main` 并通过合并后 CI；GitHub Release 与 PyPI 发布由 `v2.0.0` tag 触发。
 
 ## 1.0.1 - 2026-08-09
 
