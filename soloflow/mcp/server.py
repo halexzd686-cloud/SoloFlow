@@ -334,6 +334,36 @@ def _handle_discover(request_id: Any) -> dict:
     )
 
 
+def _handle_initialize(request_id: Any, params: dict) -> dict:
+    """兼容仍使用 initialize 生命周期的 MCP 客户端。
+
+    MCP 2026-07-28 已改用无状态发现，但 Claude Code 等客户端仍可能
+    使用旧版 initialize/initialized 握手。基础 tools 能力在这些协议版本
+    间兼容，因此回显客户端请求的协议版本并声明 tools 能力。
+    """
+    requested_version = params.get("protocolVersion")
+    negotiated_version = (
+        requested_version
+        if isinstance(requested_version, str) and requested_version
+        else PROTOCOL_VERSION
+    )
+    return _build_response(
+        request_id,
+        {
+            "protocolVersion": negotiated_version,
+            "capabilities": {"tools": {"listChanged": False}},
+            "serverInfo": {
+                "name": SERVER_NAME,
+                "title": "SoloFlow",
+                "version": SERVER_VERSION,
+            },
+            "instructions": (
+                "Use SoloFlow tools to inspect, validate, and run Skills, Agents, and Flows."
+            ),
+        },
+    )
+
+
 def _handle_tools_list(request_id: Any) -> dict:
     """tools/list —— 返回可用工具列表（受 allowed_tools 限制）。"""
     allowed = _get_allowed_tools()
@@ -730,8 +760,12 @@ def _process_request(request: dict) -> dict | None:
     if req_id is None:
         return None
 
-    if method == "server/discover":
+    if method == "initialize":
+        return _handle_initialize(req_id, params)
+    elif method == "server/discover":
         return _handle_discover(req_id)
+    elif method == "ping":
+        return _build_response(req_id, {})
     elif method == "tools/list":
         return _handle_tools_list(req_id)
     elif method == "tools/call":

@@ -5,6 +5,7 @@ from soloflow.mcp.server import (
     _check_auth,
     _check_tool_allowed,
     _handle_discover,
+    _handle_initialize,
     _handle_tools_list,
     _load_mcp_config,
     _process_request,
@@ -21,6 +22,23 @@ def test_discover_response():
     resp = _handle_discover(1)
     assert resp["result"]["supportedVersions"] == ["2026-07-28"]
     assert "tools" in resp["result"]["capabilities"]
+
+
+def test_initialize_response_negotiates_client_protocol():
+    """真实 MCP 客户端的 initialize 握手返回标准能力和服务器信息。"""
+    resp = _handle_initialize(
+        1,
+        {
+            "protocolVersion": "2025-11-25",
+            "capabilities": {},
+            "clientInfo": {"name": "test-client", "version": "1.0"},
+        },
+    )
+    result = resp["result"]
+    assert result["protocolVersion"] == "2025-11-25"
+    assert result["capabilities"]["tools"]["listChanged"] is False
+    assert result["serverInfo"]["name"] == "soloflow"
+    assert result["serverInfo"]["version"]
 
 
 def test_tools_list_response():
@@ -48,6 +66,20 @@ def test_process_discover_request():
     assert resp is not None
     assert "result" in resp
     assert "supportedVersions" in resp["result"]
+
+
+def test_process_initialize_and_ping_requests():
+    initialize = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {"protocolVersion": "2025-06-18", "capabilities": {}},
+    }
+    init_resp = _process_request(initialize)
+    assert init_resp["result"]["protocolVersion"] == "2025-06-18"
+
+    ping_resp = _process_request({"jsonrpc": "2.0", "id": 2, "method": "ping"})
+    assert ping_resp == {"jsonrpc": "2.0", "id": 2, "result": {}}
 
 
 def test_process_tools_list_request():

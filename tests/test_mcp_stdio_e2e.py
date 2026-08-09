@@ -67,6 +67,14 @@ class McpClient:
             raise RuntimeError("MCP server 提前退出")
         return json.loads(line)
 
+    def notify(self, method: str, params: dict | None = None) -> None:
+        """发送无需响应的 JSON-RPC 通知。"""
+        payload = {"jsonrpc": "2.0", "method": method}
+        if params is not None:
+            payload["params"] = params
+        self.proc.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        self.proc.stdin.flush()
+
     def close(self):
         try:
             self.proc.stdin.close()
@@ -97,6 +105,29 @@ def test_mcp_stdio_discover(project_root):
         server_info = result["_meta"]["io.modelcontextprotocol/serverInfo"]
         assert server_info["name"] == "soloflow"
         assert server_info["version"]
+    finally:
+        client.close()
+
+
+def test_mcp_stdio_standard_initialize_lifecycle(project_root):
+    """真实 stdio 进程兼容 initialize → initialized → tools/list 生命周期。"""
+    client = McpClient(cwd=project_root)
+    try:
+        resp = client.request(
+            "initialize",
+            {
+                "protocolVersion": "2025-11-25",
+                "capabilities": {},
+                "clientInfo": {"name": "pytest-mcp-client", "version": "1.0"},
+            },
+        )
+        assert "error" not in resp
+        assert resp["result"]["protocolVersion"] == "2025-11-25"
+        assert "tools" in resp["result"]["capabilities"]
+
+        client.notify("notifications/initialized")
+        tools_resp = client.request("tools/list")
+        assert len(tools_resp["result"]["tools"]) == 9
     finally:
         client.close()
 

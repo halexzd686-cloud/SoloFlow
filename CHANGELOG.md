@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### Fixed
+
+- MCP Server 兼容仍使用 `initialize`、`notifications/initialized` 和 `ping` 的客户端生命周期，同时保留新版 `server/discover` 支持。
+
+### Verification
+
+- Claude Code 2.1.201 在 Windows 11 上成功连接 stdio Server 并调用 `soloflow_list_skills`。
+- 本地回归基线更新为 236 项测试通过，Ruff check 与 format check 通过。
+
 ## 1.0.0rc1 - 2026-08-09
 
 ### Added

@@ -10,6 +10,15 @@ uv run sf mcp
 
 客户端配置可以参考仓库根目录的 `mcp-config.example.json`。其中的路径和命令需要按客户端环境调整。
 
+Claude Code 可在项目根目录注册本地连接：
+
+```bash
+claude mcp add --scope local soloflow -- uv run sf mcp
+claude mcp get soloflow
+```
+
+SoloFlow 同时支持 `initialize` / `notifications/initialized` 生命周期和新版 `server/discover`，便于不同协议代际的客户端接入。
+
 ## Tools
 
 - `soloflow_list_skills`
@@ -31,4 +40,4 @@ uv run sf mcp
 
 推荐为每个客户端设置非空 token，并只允许实际需要的工具。配置文件和 token 不应提交到 Git。
 
-当前自动化测试覆盖 stdio 子进程、鉴权和工具白名单；真实客户端连接仍列为 Release Candidate 验收项。
+自动化测试覆盖 stdio 子进程、协议握手、鉴权和工具白名单。Claude Code 2.1.201 已在 Windows 11 上完成真实连接，并成功调用 `soloflow_list_skills`；Cursor 和 Codex 仍列为后续兼容性验证项。

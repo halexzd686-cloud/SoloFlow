@@ -5,19 +5,20 @@
 ## Verified locally
 
 - Windows 11, Python 3.12.13。
-- `233 passed`。
-- Ruff check 通过，48 个 Python 文件格式检查通过。
+- `236 passed`。
+- Ruff check 通过，63 个 Python 文件格式检查通过。
 - wheel 和 sdist 可构建。
 - wheel 在全新虚拟环境安装成功。
 - 离开源码目录后可发现 4 个 Skill、2 个 Agent、8 个 Flow，并可 dry-run `blog-pipeline`。
 - MCP stdio、Registry 本地 Git 闭环和 TUI 无头测试由自动化测试覆盖。
+- Claude Code 2.1.201 已完成真实 MCP 连接，并成功调用 `soloflow_list_skills`。
 - GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
 
 ## Not yet externally verified
 
 - 真实 OpenAI、Anthropic、DeepSeek 调用及限流、超时和 token usage。
-- Claude Code、Cursor 或 Codex 的真实 MCP 客户端连接。
+- Cursor 和 Codex 的真实 MCP 客户端连接（Claude Code 已验证）。
 - 真实远程 Registry 的 publish、PR、install 和 update 闭环。
 - Heartbeat 长时间运行、重启恢复、PID 复用和多 Agent 并发。
 - PyPI 发布和第三方用户的干净安装反馈。
