@@ -25,6 +25,7 @@
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
 - CLI 可安全加载当前工作目录 `.env`，已有进程环境变量优先且不会搜索父目录。
 - PyPI RC5 与正式版 v1.0.0 均通过 GitHub OIDC Trusted Publishing 发布；正式版 GitHub/PyPI SHA256 一致，官方索引元数据、wheel/sdist、数字发布证明及全新环境安装均验证通过。
+- v1.0.1 已通过 GitHub OIDC Trusted Publishing 发布；官方 PyPI 干净安装、DeepSeek-only 配置、非指定调用目标提前拒绝、wheel/sdist 数字证明及 GitHub/PyPI SHA256 一致性均验证通过。
 
 ## Provider support scope
 
@@ -35,7 +36,7 @@
 
 - README 已按“概念解释 → dry-run → 配置 → 真实 Skill → 完整 Flow”重构。
 - `docs/tutorial.md` 新增 TrailLight Mini 虚拟案例、预期行为、恢复教学和常见问题。
-- 发布提交已通过 Windows/Linux × Python 3.12/3.13 CI 和 clean-wheel smoke。
+- 发布提交已通过 Windows/Linux × Python 3.12/3.13 CI 和 clean-wheel smoke，GitHub Release 与 PyPI 正式版均已发布。
 
 ## Not yet externally verified
 

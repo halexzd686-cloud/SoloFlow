@@ -24,6 +24,7 @@
 
 - 本地 251 项测试通过，Ruff check 与 50 个 Python 文件 format check 通过。
 - `content-writer` Skill、`content-editor` Agent 与 `blog-pipeline` Flow 的 DeepSeek dry-run 均通过。
+- v1.0.1 已通过 GitHub OIDC 发布到 PyPI；官方索引干净安装、DeepSeek-only 配置、非指定目标提前拒绝、wheel/sdist 数字证明与 GitHub/PyPI SHA256 一致性均验证通过。
 
 ## 1.0.0 - 2026-08-09
 
