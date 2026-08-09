@@ -23,13 +23,13 @@
 - GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
 - CLI 可安全加载当前工作目录 `.env`，已有进程环境变量优先且不会搜索父目录。
-- PyPI 项目链接元数据已补齐；Trusted Publishing 工作流会用 RC5 验证预发布上传链路。
+- PyPI RC5 已通过 GitHub OIDC Trusted Publishing 发布；官方索引元数据、wheel/sdist、发布证明及全新环境安装均验证通过。
 
 ## Not yet externally verified
 
 - 真实 OpenAI、Anthropic 调用和 DeepSeek 限流场景（DeepSeek 正常调用、超时与鉴权失败已验证）。
 - Cursor 和 Codex 的真实 MCP 客户端连接（Claude Code 已验证）。
-- PyPI 发布和第三方用户的干净安装反馈。
+- 第三方用户的干净安装反馈。
 
 ## Known limitations
 

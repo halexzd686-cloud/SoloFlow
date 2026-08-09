@@ -10,6 +10,10 @@
 
 - GitHub Release 工作流现在也通过 PyPI Trusted Publishing 上传 RC 标签，用预发布版本验证正式发布链路。
 
+### Verification
+
+- RC5 已通过 GitHub OIDC 发布到 PyPI；官方索引 wheel/sdist、项目链接、全新环境安装和仓库绑定的数字发布证明均验证通过。
+
 ## 1.0.0rc4 - 2026-08-09
 
 ### Added
