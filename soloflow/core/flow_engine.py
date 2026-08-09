@@ -19,8 +19,9 @@ import yaml
 from rich.console import Console
 from rich.panel import Panel
 
+from soloflow.core.agent_runner import load_skills_for_agent, render_agent_prompt
+from soloflow.core.runner import execute_prompt, render_skill_prompt
 from soloflow.core.skill_loader import find_skill, load_skill
-from soloflow.llm.client import call_llm_full, call_llm_stream
 from soloflow.models.flow import (
     FlowDefinition,
     FlowResult,
@@ -307,71 +308,31 @@ def _topological_sort(steps: list[FlowStep]) -> list[list[str]]:
 
 
 def _build_step_prompt(step: FlowStep, context: dict) -> str:
-    """为步骤构建完整的 LLM prompt。
-
-    支持两种模式：
-    1. 指定 skill —— 加载单个 Skill
-    2. 指定 agent —— 加载 Agent 及其绑定的所有 Skill（多 Skill 支持）
-    """
-    # 解析输入变量
+    """Resolve Flow inputs and delegate prompt rendering to the shared Runner."""
     resolved_inputs = {}
     for key, value in step.input.mapping.items():
         resolved_inputs[key] = _resolve_ref(value, context)
 
-    prompt_parts = []
+    if resolved_inputs:
+        task = "\n".join(f"**{key}**: {value}" for key, value in resolved_inputs.items())
+    else:
+        task = "Execute the task as defined in your instructions."
 
     if step.agent:
-        # --- Agent 模式：加载 Agent + 多 Skill ---
         try:
             from soloflow.cli.agent import _load_agent
 
             agent = _load_agent(step.agent)
-
-            # Agent 角色设定
-            agent_prompt = agent.system_prompt
-            if agent_prompt:
-                prompt_parts.append(agent_prompt)
-
-            # 加载 Agent 绑定的所有 Skill
-            for skill_name in agent.skills:
-                try:
-                    skill_path = find_skill(skill_name)
-                    skill = load_skill(skill_path)
-                    prompt_parts.append(f"\n---\n## Skill: {skill_name}\n{skill.full_prompt}")
-                except FileNotFoundError:
-                    console.print(
-                        f"[yellow]Warning: Skill '{skill_name}' not found "
-                        f"for agent '{step.agent}'[/yellow]"
-                    )
-
-            # Agent 配置覆盖
-            if agent.rules:
-                prompt_parts.append("\n# Agent Rules\n" + "\n".join(f"- {r}" for r in agent.rules))
-
+            loaded_skills = load_skills_for_agent(agent)
+            if loaded_skills:
+                return render_agent_prompt(agent, loaded_skills, task)
         except (ImportError, FileNotFoundError) as e:
             console.print(
                 f"[yellow]Warning: Agent '{step.agent}' not found, "
                 f"falling back to skill '{step.skill}' ({e})[/yellow]"
             )
-            # 回退到 Skill 模式
-            skill_path = find_skill(step.skill)
-            skill = load_skill(skill_path)
-            prompt_parts.append(skill.full_prompt)
-    else:
-        # --- Skill 模式：加载单个 Skill ---
-        skill_path = find_skill(step.skill)
-        skill = load_skill(skill_path)
-        prompt_parts.append(skill.full_prompt)
 
-    # 任务输入
-    prompt_parts.append("\n---\n# Task\n")
-    if resolved_inputs:
-        for key, value in resolved_inputs.items():
-            prompt_parts.append(f"**{key}**: {value}")
-    else:
-        prompt_parts.append("Execute the task as defined in your instructions.")
-
-    return "\n".join(prompt_parts)
+    return render_skill_prompt(load_skill(find_skill(step.skill)), task)
 
 
 def load_flow(path: str | Path) -> FlowDefinition:
@@ -845,39 +806,25 @@ def run_flow(
 
             try:
                 if stream:
-                    # ── 流式模式 ──
                     console.print("  [dim]streaming...[/dim]")
-                    accumulated = []
-                    usage_holder = {}
-
-                    def _on_usage(llm_result) -> None:
-                        usage_holder["result"] = llm_result
-
-                    for chunk in call_llm_stream(
-                        prompt=prompt,
+                    llm_result = execute_prompt(
+                        prompt,
                         model=model,
                         provider=provider,
                         temperature=temperature,
                         max_tokens=max_tokens_val,
-                        on_usage=_on_usage,
+                        stream=True,
+                        on_chunk=lambda chunk: console.print(chunk, end="", highlight=False),
                         timeout=step_timeout,
-                    ):
-                        accumulated.append(chunk)
-                        console.print(chunk, end="", highlight=False)
-                    console.print()  # 换行
-                    sr.output = "".join(accumulated)
-                    # GAP-LLM-001: 流式结束后累计真实 usage（非 chunk 数）
-                    usage = usage_holder.get("result")
-                    if usage:
-                        sr.tokens = usage.total_tokens
+                    )
+                    console.print()
                 else:
-                    # ── 非流式模式 ──
                     # P1-002 修复: asyncio.to_thread 让 LLM 调用在真实线程中执行，
                     # 同层步骤真正并发。之前直接同步调用阻塞 event loop，
                     # asyncio.gather 实际是串行执行。
                     llm_result = await _asyncio_mod.to_thread(
-                        call_llm_full,
-                        prompt=prompt,
+                        execute_prompt,
+                        prompt,
                         model=model,
                         provider=provider,
                         temperature=temperature,
@@ -885,8 +832,8 @@ def run_flow(
                         timeout=step_timeout,
                         max_retries=step_retries,
                     )
-                    sr.output = llm_result.content
-                    sr.tokens = llm_result.total_tokens
+                sr.output = llm_result.content
+                sr.tokens = llm_result.total_tokens
                 sr.status = "done"
             except Exception as e:
                 sr.status = "failed"

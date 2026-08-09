@@ -334,7 +334,7 @@ def test_flow_engine_accumulates_tokens(monkeypatch, tmp_path):
 
     with (
         mpatch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        mpatch("soloflow.core.flow_engine.call_llm_full", fake_call_llm_full),
+        mpatch("soloflow.core.flow_engine.execute_prompt", fake_call_llm_full),
     ):
         result = run_flow(flow)
 

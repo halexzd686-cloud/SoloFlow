@@ -517,7 +517,7 @@ def test_flow_resume_end_to_end(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm),
     ):
         # ── 第一次运行: A 成功, B 失败, C skipped ──
         result1 = run_flow(
@@ -610,7 +610,7 @@ def test_run_flow_output_mapping(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm),
     ):
         result = run_flow(flow, inputs={"topic": "AI"})
 
@@ -668,7 +668,7 @@ def test_run_flow_output_mapping_resume(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm),
     ):
         result1 = run_flow(load_flow(flows_dir / "output-resume.flow.yml"))
         assert result1.status == "partial"
@@ -799,7 +799,7 @@ def test_run_flow_accepts_correct_type():
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", return_value=LLMResult(content="output")),
+        patch("soloflow.core.flow_engine.execute_prompt", return_value=LLMResult(content="output")),
     ):
         result = run_flow(flow, inputs={"count": 3})
     assert result.status == "done"
@@ -842,7 +842,7 @@ def test_flow_resume_nothing_to_resume(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm),
     ):
         result = run_flow(load_flow(flows_dir / "resume-none.flow.yml"))
         assert result.status == "done"
@@ -892,7 +892,7 @@ def test_flow_step_passes_timeout_and_retries(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm_full),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm_full),
     ):
         result = run_flow(flow)
 
@@ -923,7 +923,7 @@ def test_flow_step_default_policy():
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm_full),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm_full),
     ):
         result = run_flow(flow)
 
@@ -952,7 +952,7 @@ def _run_flow_with_mock(flow, call_side_effect, monkeypatch=None, tmp_path=None)
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm_full),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm_full),
     ):
         result = run_flow(flow)
     return result, calls
@@ -1144,7 +1144,7 @@ def test_flow_max_parallel_one_is_serial(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm_full),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm_full),
     ):
         result = run_flow(flow, max_parallel=1)
 
@@ -1188,7 +1188,7 @@ def test_flow_max_parallel_two_allows_overlap(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", side_effect),
+        patch("soloflow.core.flow_engine.execute_prompt", side_effect),
     ):
         result = run_flow(flow, max_parallel=2)
 
@@ -1402,7 +1402,7 @@ def test_resume_preserves_historical_tokens(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm_full),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm_full),
     ):
         result1 = run_flow(load_flow(flows_dir / "token-resume.flow.yml"))
         assert result1.status == "partial"
@@ -1483,16 +1483,14 @@ def test_stream_mode_serializes_parallelism(monkeypatch, tmp_path):
     lock = threading.Lock()
 
     def fake_stream(prompt, **kwargs):
-        def gen():
-            with lock:
-                active["n"] += 1
-                active["max"] = max(active["max"], active["n"])
-            time.sleep(0.05)
-            yield "chunk"
-            with lock:
-                active["n"] -= 1
-
-        return gen()
+        with lock:
+            active["n"] += 1
+            active["max"] = max(active["max"], active["n"])
+        time.sleep(0.05)
+        kwargs["on_chunk"]("chunk")
+        with lock:
+            active["n"] -= 1
+        return LLMResult(content="chunk")
 
     from unittest.mock import patch
 
@@ -1501,7 +1499,7 @@ def test_stream_mode_serializes_parallelism(monkeypatch, tmp_path):
 
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_stream", fake_stream),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_stream),
     ):
         result = run_flow(flow, stream=True, max_parallel=2)
 
@@ -1569,7 +1567,7 @@ def test_run_flow_valid_max_parallel_unchanged():
     for mp in (1, 2, 5):
         with (
             patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-            patch("soloflow.core.flow_engine.call_llm_full", return_value=LLMResult(content="ok")),
+            patch("soloflow.core.flow_engine.execute_prompt", return_value=LLMResult(content="ok")),
         ):
             result = run_flow(flow, max_parallel=mp)
         assert result.status == "done"

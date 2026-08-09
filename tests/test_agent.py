@@ -367,7 +367,7 @@ def test_flow_agent_step_uses_agent_config():
     # code-guardian 显式设置 temperature=0.2 → 步骤必须用 0.2
     with (
         patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
-        patch("soloflow.core.flow_engine.call_llm_full", fake_call_llm_full),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call_llm_full),
     ):
         result = run_flow(flow)
 
