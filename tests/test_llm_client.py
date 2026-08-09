@@ -95,10 +95,16 @@ def test_call_llm_backward_compat():
 
 
 def test_call_llm_missing_api_key():
-    """缺少 API Key 时抛 RuntimeError。"""
+    """缺少 API Key 时给出 .env、环境变量和获取地址。"""
     with patch("soloflow.llm.client._get_api_key", return_value=None):
-        with pytest.raises(RuntimeError, match="API Key"):
+        with pytest.raises(RuntimeError) as exc_info:
             call_llm_full(prompt="test")
+
+    message = str(exc_info.value)
+    assert "DEEPSEEK_API_KEY=你的密钥" in message
+    assert '$env:DEEPSEEK_API_KEY="你的密钥"' in message
+    assert "https://platform.deepseek.com/" in message
+    assert "--dry-run" in message
 
 
 @pytest.mark.parametrize(

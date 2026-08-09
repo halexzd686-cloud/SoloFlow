@@ -127,7 +127,11 @@ def call_llm_full(
     api_key = _get_api_key(provider)
     if not api_key:
         raise RuntimeError(
-            f"未设置 {provider} 的 API Key。请设置环境变量 DEEPSEEK_API_KEY 或使用 --dry-run 预览。"
+            "未设置 DeepSeek API Key。请选择一种方式配置：\n"
+            "1. 在当前目录创建 .env，写入 DEEPSEEK_API_KEY=你的密钥\n"
+            "2. 设置环境变量 DEEPSEEK_API_KEY（PowerShell: "
+            '$env:DEEPSEEK_API_KEY="你的密钥"）\n'
+            "获取密钥：https://platform.deepseek.com/；也可使用 --dry-run 零费用预览。"
         )
 
     try:
@@ -251,7 +255,13 @@ def call_llm_stream(
 
     api_key = _get_api_key(provider)
     if not api_key:
-        raise RuntimeError(f"未设置 {provider} 的 API Key。请设置环境变量 DEEPSEEK_API_KEY。")
+        raise RuntimeError(
+            "未设置 DeepSeek API Key。请选择一种方式配置：\n"
+            "1. 在当前目录创建 .env，写入 DEEPSEEK_API_KEY=你的密钥\n"
+            "2. 设置环境变量 DEEPSEEK_API_KEY（PowerShell: "
+            '$env:DEEPSEEK_API_KEY="你的密钥"）\n'
+            "获取密钥：https://platform.deepseek.com/。"
+        )
 
     try:
         from litellm import completion
