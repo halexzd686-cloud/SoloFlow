@@ -23,7 +23,7 @@
 - GitHub Actions Windows/Linux × Python 3.12/3.13 矩阵通过。
 - GitHub Actions Ubuntu clean-wheel 安装及源码目录外 smoke 通过。
 - CLI 可安全加载当前工作目录 `.env`，已有进程环境变量优先且不会搜索父目录。
-- PyPI RC5 已通过 GitHub OIDC Trusted Publishing 发布；官方索引元数据、wheel/sdist、发布证明及全新环境安装均验证通过。
+- PyPI RC5 与正式版 v1.0.0 均通过 GitHub OIDC Trusted Publishing 发布；正式版 GitHub/PyPI SHA256 一致，官方索引元数据、wheel/sdist、数字发布证明及全新环境安装均验证通过。
 
 ## Provider support scope
 

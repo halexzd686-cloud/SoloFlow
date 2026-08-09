@@ -22,6 +22,7 @@
 - 本地 248 项测试、Ruff 检查、Windows/Linux × Python 3.12/3.13 CI 和 clean-wheel smoke 均通过。
 - DeepSeek Skill、Agent、Flow、错误处理、双 Agent Heartbeat、500 周期故障注入与 67 分钟真实 soak 均通过。
 - Claude Code MCP 实连、远程 Registry publish/PR/install，以及 PyPI RC5 发布、官方索引安装和数字发布证明均通过。
+- v1.0.0 已通过 GitHub OIDC 发布到 PyPI；GitHub/PyPI wheel 与 sdist 哈希一致，正式 wheel 的仓库绑定数字证明和官方索引全新安装均通过。
 
 ## 1.0.0rc5 - 2026-08-09
 
