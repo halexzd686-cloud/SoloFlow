@@ -9,7 +9,7 @@
 
 SoloFlow 把提示词和专家经验保存为可版本控制的 `SKILL.md`，再通过 Agent 组合角色，通过 Flow 把多个步骤编排成可恢复的 DAG。所有核心资产都是普通文本文件，适合本地使用、团队协作和 Git 分享。
 
-当前版本为 `1.0.0rc2`。本地 243 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install 及双 Agent Heartbeat 真实触发均已通过；其他 LLM 供应商和 Heartbeat 长时间稳定性仍待验证，详见[项目状态](STATUS.md)。
+当前版本为 `1.0.0rc3`。本地 243 项测试、GitHub Actions 跨平台矩阵、wheel 构建、干净环境安装 smoke、DeepSeek Skill/Agent/Flow 实调、Claude Code MCP 实连、远程 Registry publish/PR/install 及双 Agent Heartbeat 真实触发均已通过；其他 LLM 供应商和 Heartbeat 长时间稳定性仍待验证，详见[项目状态](STATUS.md)。
 
 ## 它解决什么问题
 

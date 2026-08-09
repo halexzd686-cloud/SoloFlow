@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 1.0.0rc3 - 2026-08-09
+
 ### Verification
 
 - DeepSeek 真实超时返回可重试错误，假密钥鉴权失败不会重试。
