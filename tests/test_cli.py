@@ -1,5 +1,6 @@
 """CLI command-surface regression tests."""
 
+from click.utils import strip_ansi
 from typer.testing import CliRunner
 
 from soloflow.cli import skill
@@ -53,8 +54,9 @@ def test_removed_nested_commands_are_absent():
 
 def test_mcp_config_options_are_merged():
     result = runner.invoke(app, ["mcp-config", "--help"])
+    output = strip_ansi(result.output)
 
     assert result.exit_code == 0
-    assert "--set-token" in result.output
-    assert "--allow-tools" in result.output
-    assert "--clear" in result.output
+    assert "--set-token" in output
+    assert "--allow-tools" in output
+    assert "--clear" in output
