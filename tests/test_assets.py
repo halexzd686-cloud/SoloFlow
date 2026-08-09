@@ -98,7 +98,7 @@ def test_all_asset_kinds_share_project_user_bundled_precedence(monkeypatch, tmp_
 
 
 def test_agent_list_uses_bundled_assets_outside_project(monkeypatch, tmp_path):
-    from soloflow.cli.agent import _list_agents
+    from soloflow.core.agent_runner import list_agents
 
     bundled_root = tmp_path / "installed" / "_bundled"
     bundled_agents = bundled_root / "agents"
@@ -120,7 +120,7 @@ def test_agent_list_uses_bundled_assets_outside_project(monkeypatch, tmp_path):
     monkeypatch.chdir(empty_project)
     monkeypatch.setattr(assets, "_BUNDLED_ROOT", bundled_root)
 
-    assert [agent["name"] for agent in _list_agents()] == ["bundled-agent"]
+    assert [agent["name"] for agent in list_agents()] == ["bundled-agent"]
 
 
 def test_bundled_skills_use_verified_deepseek_defaults():
