@@ -41,8 +41,8 @@
 - GitHub Actions 的 Windows/Linux × Python 3.12/3.13 测试矩阵和 Ubuntu clean-wheel build smoke 通过。
 - wheel 和 sdist 构建通过；wheel 在隔离环境安装后，从源码目录外执行 `sf run content-writer "测试主题" --dry-run` 成功。
 - 隔离安装包含 24 个包；`litellm` 已从项目依赖和锁文件移除。
-- `soloflow/` Python 代码 3,476 行，README 48 行，顶层命令 7 个。
-- v2.0.0 代码已合入 `main` 并通过合并后 CI；GitHub Release 与 PyPI 发布由 `v2.0.0` tag 触发。
+- `soloflow/` Python 代码 3,476 行，README 70 行，顶层命令 7 个。
+- v2.0.0 已通过 GitHub Release 与 PyPI OIDC Trusted Publishing 发布；两端 wheel、sdist 的 SHA256 一致，官方索引隔离安装与源码目录外 dry-run 通过。
 
 ## 1.0.1 - 2026-08-09
 
