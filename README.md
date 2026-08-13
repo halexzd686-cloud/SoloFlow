@@ -29,6 +29,12 @@ DEEPSEEK_API_KEY=你的密钥
 uvx soloflow run content-writer "为我的产品写一篇介绍"
 ```
 
+临时切换 DeepSeek 模型，不会修改工作手册：
+
+```bash
+uvx soloflow run content-writer "为我的产品写一篇介绍" --model deepseek-chat
+```
+
 不产生 API 费用时，先预览 Prompt：
 
 ```bash
@@ -40,6 +46,8 @@ uvx soloflow run content-writer "为我的产品写一篇介绍" --dry-run
 - **工作手册（Playbook）**：一份可重复执行的 AI 工作方法，例如 [`content-writer`](skills/writing/content-writer/SKILL.md)。新建工作手册使用 `PLAYBOOK.md`。
 - **Flow**：把多个工作手册按依赖顺序串起来，例如 [`blog-pipeline`](flows/blog-pipeline.flow.yml)。
 - **Agent（可选）**：给工作手册加上固定角色和行为规则，例如 [`content-editor`](agents/content-editor.agent.yml)。
+
+Flow 还支持面向实际工作的控制：用 `output_format: json` 产出可判断的结果，用 `when` 控制后续步骤，用 `type: approval` 在发布、发信或提交前暂停等待人工确认。
 
 ## 常用命令
 
@@ -54,6 +62,8 @@ uvx soloflow run content-writer "为我的产品写一篇介绍" --dry-run
 | `sf flow runs` | 查看 Flow 运行记录 |
 | `sf flow watch <run-id>` | 实时查看 Flow 进度 |
 | `sf flow resume <run-id>` | 从失败处恢复 Flow |
+| `sf flow approve <run-id> --step <id>` | 批准人工审批节点并继续 |
+| `sf flow reject <run-id> --step <id>` | 拒绝人工审批节点 |
 | `sf agent run <name> <task>` | 用 Agent 执行任务 |
 
 从源码开发，把 `sf` 换成 `uv run sf`。项目目录、`~/.soloflow/`、安装包内置资产按优先级查找；工作手册优先查找 `playbooks/<name>/PLAYBOOK.md`，同时兼容旧的 `skills/<name>/SKILL.md`。

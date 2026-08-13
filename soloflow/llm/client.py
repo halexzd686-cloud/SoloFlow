@@ -14,7 +14,6 @@ console = Console()
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_API_KEY_ENV = "DEEPSEEK_API_KEY"
 DEFAULT_MODEL = "deepseek-v4-flash"
-ALLOWED_TARGETS = frozenset({(DEFAULT_BASE_URL, DEFAULT_API_KEY_ENV, DEFAULT_MODEL)})
 
 
 class LLMResult(BaseModel):
@@ -29,11 +28,15 @@ class LLMResult(BaseModel):
 
 
 def _validate_target(base_url: str, api_key_env: str, model: str) -> str:
-    """Reject non-whitelisted targets before reading any credential."""
+    """Keep the provider boundary while allowing every DeepSeek model name."""
     normalized_url = base_url.rstrip("/")
-    if (normalized_url, api_key_env, model) not in ALLOWED_TARGETS:
+    if (
+        normalized_url != DEFAULT_BASE_URL
+        or api_key_env != DEFAULT_API_KEY_ENV
+        or not model.strip().startswith("deepseek-")
+    ):
         raise RuntimeError(
-            "当前版本仅支持 deepseek/deepseek-v4-flash；"
+            "当前版本仅支持 DeepSeek 官方接口与 DEEPSEEK_API_KEY，model 必须是 DeepSeek 模型名；"
             f"收到 base_url={normalized_url!r}, api_key_env={api_key_env!r}, model={model!r}。"
         )
     return normalized_url
@@ -124,8 +127,9 @@ def chat(
     timeout: float = 120.0,
     max_retries: int = 2,
 ) -> LLMResult:
-    """Call the only currently allowed model through one project-wide boundary."""
+    """Call a validated DeepSeek model through one project-wide boundary."""
     base_url = _validate_target(base_url, api_key_env, model)
+    model = model.strip()
     if dry_run:
         return LLMResult(content="[DRY RUN]", model=model)
 

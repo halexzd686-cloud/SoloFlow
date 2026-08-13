@@ -10,6 +10,14 @@
 - 新建工作手册默认写入 `playbooks/<name>/PLAYBOOK.md`。
 - Flow 支持 `playbook:` 字段，Agent 支持 `playbooks:` 字段。
 - 保留 `sf skill`、`SKILL.md`、`skill:` 和 `skills:` 作为兼容格式；MCP 的旧 `*_skill` 工具名也继续保留。
+- DeepSeek 模型配置放宽为任意 `deepseek-*` 模型名，同时继续锁定官方接口和 `DEEPSEEK_API_KEY`。
+- Runner 支持 `sf run ... --model <deepseek-model>` 临时覆盖模型配置。
+- Flow 支持 JSON 输出契约、`when` 条件节点和可暂停恢复的 `approval` 人工审批节点。
+
+### Fixed
+
+- Windows CLI 输出统一尝试使用 UTF-8，降低 GBK 终端下中文乱码概率。
+- 清理安全策略中关于已删除 Registry 的历史表述。
 
 ## 2.0.0 - 2026-08-10
 

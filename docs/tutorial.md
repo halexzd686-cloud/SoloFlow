@@ -43,7 +43,13 @@ uvx soloflow run content-writer "为 TrailLight Mini 写一篇产品介绍" --dr
 uvx soloflow run content-writer "为 TrailLight Mini 写一篇产品介绍。已知：180 克、三档亮度、USB-C 充电、面向周末露营新手。不得编造其他参数。"
 ```
 
-SoloFlow 使用 `deepseek/deepseek-v4-flash` 生成内容，并显示 token 用量。事实仍需人工复核。
+SoloFlow 使用配置的 DeepSeek 模型生成内容，并显示 token 用量。默认模型是 `deepseek-v4-flash`，也可以在工作手册中改成其他 `deepseek-*` 模型。事实仍需人工复核。
+
+如果只想本次运行换一个模型，不修改工作手册：
+
+```bash
+uvx soloflow run content-writer "为 TrailLight Mini 写一篇产品介绍" --model deepseek-chat
+```
 
 ## 4. 看懂工作手册文件
 
@@ -86,6 +92,39 @@ uvx soloflow flow run blog-pipeline -i topic="TrailLight Mini：180 克、三档
 
 Flow 本身没有联网搜索能力；`research` 只能整理输入信息，不能核实外部市场事实。
 
+### 加入结构化审核和人工确认
+
+工作中常见的做法是让审核节点返回机器可判断的 JSON，再决定是否进入发布步骤：
+
+```yaml
+- id: review
+  playbook: code-reviewer
+  output_format: json
+  output_schema:
+    type: object
+    required: [approved, issues]
+    properties:
+      approved: {type: boolean}
+      issues: {type: array}
+
+- id: approval
+  type: approval
+  depends_on: [review]
+
+- id: publish
+  playbook: content-writer
+  depends_on: [approval]
+  when: $steps.approval.data.approved == true
+```
+
+Flow 遇到 `approval` 会保存运行记录并暂停。查看 `sf flow runs` 得到 run ID 后，人工确认：
+
+```bash
+uvx soloflow flow approve <run-id> --step approval --note "已复核，可发布"
+# 或
+uvx soloflow flow reject <run-id> --step approval --note "需要修改后再审"
+```
+
 ## 6. 查看与恢复
 
 ```bash
@@ -93,7 +132,7 @@ uvx soloflow flow runs
 uvx soloflow flow resume <run-id>
 ```
 
-运行记录保存在当前目录的 `.soloflow/runs/`。恢复时会复用已经完成的步骤，从失败处继续。
+运行记录保存在当前目录的 `.soloflow/runs/`。恢复时会复用已经完成的步骤，从失败处继续；人工审批也使用同一套恢复机制。
 
 ## 7. 可选：使用 Agent
 

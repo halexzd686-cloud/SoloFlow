@@ -35,9 +35,26 @@ def test_run_shortcut_delegates_to_skill_run(monkeypatch):
         "prompt": "test task",
         "input_file": None,
         "count": 1,
+        "model": None,
         "dry_run": True,
         "stream": False,
     }
+
+
+def test_run_shortcut_accepts_model_override(monkeypatch):
+    captured = {}
+
+    def fake_run(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(skill, "run", fake_run)
+    result = runner.invoke(
+        app,
+        ["run", "content-writer", "test task", "--model", "deepseek-chat", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert captured["model"] == "deepseek-chat"
 
 
 def test_removed_nested_commands_are_absent():

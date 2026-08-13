@@ -302,6 +302,7 @@ def run(
     prompt: str = typer.Argument(None, help="输入任务描述"),
     input_file: str = typer.Option(None, "--file", "-f", help="从文件读取输入"),
     count: int = typer.Option(1, "--count", "-n", help="生成几个版本 (抽卡模式)"),
+    model: str | None = typer.Option(None, "--model", help="临时覆盖工作手册的 DeepSeek 模型"),
     dry_run: bool = typer.Option(False, "--dry-run", help="仅显示 prompt，不调用 LLM"),
     stream: bool = typer.Option(False, "--stream", "-s", help="流式输出（逐 token 实时打印）"),
 ):
@@ -331,7 +332,8 @@ def run(
         user_input = typer.prompt("输入任务描述")
 
     console.print(f"\n[dim]使用工作手册: {skill.meta.name} v{skill.meta.version}[/dim]")
-    console.print(f"[dim]模型: {skill.config.model} | 温度: {skill.config.temperature}[/dim]")
+    effective_model = model.strip() if model and model.strip() else skill.config.model
+    console.print(f"[dim]模型: {effective_model} | 温度: {skill.config.temperature}[/dim]")
 
     if stream:
         console.print("[dim]模式: 流式输出[/dim]")
@@ -345,7 +347,7 @@ def run(
     # 实际执行
     from soloflow.core.runner import run_skill
 
-    run_skill(skill, user_input, count=count, stream=stream)
+    run_skill(skill, user_input, count=count, model=model, stream=stream)
 
 
 # ── 辅助函数 ──

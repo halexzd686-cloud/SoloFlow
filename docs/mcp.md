@@ -17,7 +17,7 @@ claude mcp add --scope local soloflow -- uv run sf mcp
 claude mcp get soloflow
 ```
 
-这里的 Claude Code 仅作为 MCP 客户端连接本地 SoloFlow Server；SoloFlow 的模型调用仍固定为 `deepseek/deepseek-v4-flash`，不会因此调用其他模型供应商 API。
+这里的 Claude Code 仅作为 MCP 客户端连接本地 SoloFlow Server；SoloFlow 的模型调用仍只经过 DeepSeek 官方接口，不会因此调用其他模型供应商 API。
 
 SoloFlow 同时支持 `initialize` / `notifications/initialized` 生命周期和新版 `server/discover`，便于不同协议代际的客户端接入。
 
@@ -42,4 +42,4 @@ SoloFlow 同时支持 `initialize` / `notifications/initialized` 生命周期和
 
 推荐为每个客户端设置非空 token，并只允许实际需要的工具。配置文件和 token 不应提交到 Git。
 
-自动化测试覆盖 stdio 子进程、协议握手、鉴权和工具白名单。Claude Code 2.1.201 已在 Windows 11 上完成真实连接，并成功调用 `soloflow_list_skills`；Cursor 和 Codex 仍列为后续兼容性验证项。
+自动化测试覆盖 stdio 子进程、协议握手、鉴权和工具白名单。Claude Code 2.1.201 已在 Windows 11 上完成真实连接，并成功调用 `soloflow_list_skills`。当前文档和验收范围只覆盖 Claude Code；其他 MCP 客户端不属于本阶段验证范围。

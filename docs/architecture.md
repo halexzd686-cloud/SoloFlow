@@ -32,9 +32,11 @@ flowchart LR
 
 Flow 在执行前校验 DAG，再按拓扑层运行步骤；没有依赖关系的步骤可并行。每一步完成后写入 `.soloflow/runs/<run-id>.json`，用于实时展示和失败恢复。
 
+LLM 节点默认输出文本；设置 `output_format: json` 和 `output_schema` 后，解析后的对象会保存为结构化数据，并可用 `$steps.<id>.data.<field>` 传给后续节点。`when` 支持安全的 `==` / `!=` 条件表达式，用于跳过不满足条件的步骤。`type: approval` 会暂停 Flow，人工通过 `sf flow approve` 或 `sf flow reject` 决策后继续或终止后续步骤。
+
 ## LLM 边界
 
-LLM 客户端使用 `httpx` 请求 OpenAI 兼容接口，不引入 provider 基类或注册机制。配置保留 `base_url`、`api_key_env` 和 `model` 三个字段，但当前白名单只允许 `deepseek/deepseek-v4-flash`；其他目标在读取密钥前被拒绝。
+LLM 客户端使用 `httpx` 请求 DeepSeek 的 OpenAI 兼容接口，不引入 provider 基类或注册机制。配置保留 `base_url`、`api_key_env` 和 `model` 三个字段：前两项固定为 DeepSeek 官方地址和 `DEEPSEEK_API_KEY`，`model` 接受任意 `deepseek-*` 模型名；不符合边界的目标会在读取密钥前被拒绝。
 
 ## 展示与协议
 

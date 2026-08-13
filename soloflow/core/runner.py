@@ -127,16 +127,20 @@ def run_skill(
     skill: SkillFile,
     user_input: str,
     count: int = 1,
+    model: str | None = None,
     dry_run: bool = False,
     stream: bool = False,
 ) -> list[str]:
-    """Render and execute one Skill through the shared Runner."""
+    """Render and execute one Skill through the shared Runner.
+
+    ``model`` is a one-run override and never mutates the Playbook file.
+    """
     return run_prompt_versions(
         render_skill_prompt(skill, user_input),
         label=skill.meta.name,
         base_url=skill.config.base_url,
         api_key_env=skill.config.api_key_env,
-        model=skill.config.model,
+        model=model.strip() if model and model.strip() else skill.config.model,
         temperature=skill.config.temperature,
         max_tokens=skill.config.max_tokens,
         count=count,

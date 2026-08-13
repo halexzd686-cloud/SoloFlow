@@ -705,6 +705,161 @@ def test_run_flow_output_mapping_resume(monkeypatch, tmp_path):
         assert state["outputs"]["review"] == "B_FINAL_OUTPUT"
 
 
+def test_structured_output_can_drive_condition_and_flow_output(monkeypatch, tmp_path):
+    """JSON output is persisted and can control a later conditional node."""
+    from unittest.mock import patch
+
+    from soloflow.core.flow_engine import run_flow
+
+    monkeypatch.chdir(tmp_path)
+    flow = FlowDefinition(
+        name="structured-condition",
+        steps=[
+            FlowStep(
+                id="review",
+                skill="code-reviewer",
+                output_format="json",
+                output_schema={
+                    "type": "object",
+                    "required": ["approved"],
+                    "properties": {"approved": {"type": "boolean"}},
+                },
+            ),
+            FlowStep(
+                id="publish",
+                skill="content-writer",
+                depends_on=["review"],
+                when="$steps.review.data.approved == true",
+            ),
+        ],
+        output={"approved": "$steps.review.data.approved"},
+    )
+    calls = []
+
+    def fake_call(prompt, **kwargs):
+        calls.append(prompt)
+        if "Output Contract" in prompt:
+            return LLMResult(content='{"approved": true}')
+        return LLMResult(content="published")
+
+    def fake_build_step_prompt(step, context):
+        return "Output Contract" if step.output_format == "json" else step.id
+
+    with (
+        patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call),
+    ):
+        result = run_flow(flow)
+
+    assert result.status == "done"
+    assert result.steps["review"].data == {"approved": True}
+    assert result.steps["publish"].status == "done"
+    assert result.outputs["approved"] is True
+    assert len(calls) == 2
+
+
+def test_false_condition_skips_step_without_calling_llm(monkeypatch, tmp_path):
+    """A false condition is a deliberate skip, not a failed model call."""
+    from unittest.mock import patch
+
+    from soloflow.core.flow_engine import run_flow
+
+    monkeypatch.chdir(tmp_path)
+    flow = FlowDefinition(
+        name="condition-skip",
+        steps=[
+            FlowStep(
+                id="review",
+                skill="code-reviewer",
+                output_format="json",
+                output_schema={"type": "object", "required": ["approved"]},
+            ),
+            FlowStep(
+                id="publish",
+                skill="content-writer",
+                depends_on=["review"],
+                when="$steps.review.data.approved == true",
+            ),
+        ],
+    )
+    calls = []
+
+    def fake_call(prompt, **kwargs):
+        calls.append(prompt)
+        return LLMResult(content='{"approved": false}')
+
+    def fake_build_step_prompt(step, context):
+        return "Output Contract"
+
+    with (
+        patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call),
+    ):
+        result = run_flow(flow)
+
+    assert result.status == "partial"
+    assert result.steps["publish"].status == "skipped"
+    assert len(calls) == 1
+
+
+def test_approval_node_pauses_and_approval_command_resumes(monkeypatch, tmp_path):
+    """Human approval is persisted and resumed through the normal Flow path."""
+    import json
+    from unittest.mock import patch
+
+    import yaml
+
+    from soloflow.core.flow_engine import decide_approval, load_flow, run_flow
+
+    monkeypatch.chdir(tmp_path)
+    flows_dir = tmp_path / "flows"
+    flows_dir.mkdir()
+    flow_data = {
+        "name": "approval-flow",
+        "steps": [
+            {"id": "draft", "skill": "content-writer"},
+            {"id": "approve", "type": "approval", "depends_on": ["draft"]},
+            {
+                "id": "publish",
+                "skill": "content-writer",
+                "depends_on": ["approve"],
+                "when": "$steps.approve.data.approved == true",
+            },
+        ],
+    }
+    flow_path = flows_dir / "approval-flow.flow.yml"
+    flow_path.write_text(yaml.safe_dump(flow_data, sort_keys=False), encoding="utf-8")
+    calls = []
+
+    def fake_call(prompt, **kwargs):
+        calls.append(prompt)
+        return LLMResult(content="drafted" if len(calls) == 1 else "published")
+
+    def fake_build_step_prompt(step, context):
+        return step.id
+
+    with (
+        patch("soloflow.core.flow_engine._build_step_prompt", fake_build_step_prompt),
+        patch("soloflow.core.flow_engine.execute_prompt", fake_call),
+    ):
+        first = run_flow(load_flow(flow_path))
+        assert first.status == "waiting_approval"
+        assert first.steps["approve"].status == "waiting_approval"
+
+        state = json.loads(
+            (tmp_path / ".soloflow" / "runs" / f"{first.run_id}.json").read_text(encoding="utf-8")
+        )
+        assert state["steps"]["approve"]["status"] == "waiting_approval"
+
+        resumed = decide_approval(first.run_id, "approve", approved=True, note="已人工确认，可发布")
+
+    assert resumed is not None
+    assert resumed.status == "done"
+    assert resumed.steps["approve"].data == {"approved": True, "note": "已人工确认，可发布"}
+    assert resumed.steps["publish"].output == "published"
+    assert len(calls) == 2
+
+
 # ── GAP-FLOW-005: 输入类型校验 ──
 
 
