@@ -37,6 +37,22 @@ SoloFlow 不是一个让 AI 自由发挥的聊天窗口，而是把一套工作�
 
 ## 快速开始
 
+### 本地网页入口（当前开发中）
+
+如果你不想理解工作手册、Flow 或命令参数，可以先启动本地网页：
+
+```bash
+uvx soloflow web
+```
+
+或在已经安装 SoloFlow 的环境中运行：
+
+```bash
+sf web
+```
+
+浏览器打开后，可以查看示例工作助手并配置 DeepSeek API Key。当前网页入口正在逐步接入工作助手创建、文件上传和结果下载能力；完整功能仍可通过下面的 CLI 入口使用。
+
 ### 1. 准备 DeepSeek API Key
 
 需要 Python 3.12+ 和 [DeepSeek API Key](https://platform.deepseek.com/)。

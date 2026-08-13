@@ -26,6 +26,18 @@ app.add_typer(agent.app, name="agent", help="Agent 智能体管理")
 app.add_typer(flow.app, name="flow", help="Flow 工作流编排")
 
 
+@app.command("web")
+def web(
+    host: str = typer.Option("127.0.0.1", help="本地网页监听地址"),
+    port: int = typer.Option(8765, min=1, max=65535, help="本地网页端口"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="启动后是否自动打开浏览器"),
+):
+    """启动 SoloFlow 本地网页。"""
+    from soloflow.web import serve
+
+    serve(host=host, port=port, open_browser=open_browser)
+
+
 @app.command("run")
 def run_skill_shortcut(
     skill_name: str = typer.Argument(..., help="工作手册名称或路径"),

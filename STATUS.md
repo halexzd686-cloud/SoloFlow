@@ -1,6 +1,6 @@
 # SoloFlow Project Status
 
-> Version: 2.0.0 | Stage: dev enhancements validation | Branch: `dev` | Released: 2026-08-10
+> Version: 2.0.0 | Stage: local web P0 implemented | Branch: `dev` | Released: 2026-08-10
 
 ## Current scope
 
@@ -10,11 +10,13 @@
 - Runner 支持通过 `sf run ... --model <deepseek-model>` 临时覆盖模型，不修改工作手册。
 - Flow 支持 JSON 输出契约、条件节点和人工审批节点；审批结果通过运行记录恢复。
 - MCP 作为高级入口保留，不进入 README 主流程；它复用同一 Core 与 Runner。
+- 本地网页 P0 已接入：`sf web` 可启动本地网页，提供示例助手首页、DeepSeek API Key 配置和默认模型保存。
+- 网页工作助手创建、文件处理、结果预览下载和分享导入仍在后续 P1/P2 实施。
 
 ## Verified locally
 
 - Windows 11、Python 3.12.13。
-- `177 passed`。
+- `180 passed`。
 - Ruff check 通过，34 个 Python 文件 format check 通过。
 - wheel 与 sdist 构建通过。
 - GitHub Actions 的 Windows/Linux × Python 3.12/3.13 测试矩阵与 Ubuntu build/clean-wheel smoke 通过。
@@ -44,6 +46,8 @@
 
 ## Known limitations
 
+- 本地网页目前是 P0 骨架，示例助手暂不可直接运行。
+- 网页尚未接入工作助手创建、文件上传、隐私确认、结果生成、下载和分享流程。
 - Runner 不自动提供浏览器、搜索、文件系统或其他外部工具。
 - Flow 暂无 fallback model、持久化队列或分布式执行。
 

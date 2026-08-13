@@ -13,7 +13,7 @@ def test_top_level_help_is_small_and_has_no_removed_commands():
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
-    for command in ("run", "version", "mcp", "mcp-config", "playbook", "flow", "agent"):
+    for command in ("run", "web", "version", "mcp", "mcp-config", "playbook", "flow", "agent"):
         assert command in result.output
     assert "skill" not in result.output
     for removed in ("dashboard", "registry", "mcp-config-set"):
@@ -55,6 +55,14 @@ def test_run_shortcut_accepts_model_override(monkeypatch):
 
     assert result.exit_code == 0
     assert captured["model"] == "deepseek-chat"
+
+
+def test_web_help_is_available():
+    result = runner.invoke(app, ["web", "--help"])
+
+    assert result.exit_code == 0
+    assert "本地网页" in result.output
+    assert "--no-open" in result.output
 
 
 def test_removed_nested_commands_are_absent():
