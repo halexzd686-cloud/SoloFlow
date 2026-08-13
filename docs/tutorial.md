@@ -1,4 +1,4 @@
-# TrailLight：从一个 Skill 到完整 Flow
+# TrailLight：从一个工作手册到完整 Flow
 
 这份教程用虚构产品 TrailLight Mini 演示 SoloFlow 的完整主路径。产品资料均为教学数据。
 
@@ -27,7 +27,7 @@ $env:DEEPSEEK_API_KEY = "你的密钥"
 DEEPSEEK_API_KEY=你的密钥
 ```
 
-SoloFlow 只读取当前目录的 `.env`。不要把真实密钥写进 Skill 或提交到 Git。
+SoloFlow 只读取当前目录的 `.env`。不要把真实密钥写进工作手册或提交到 Git。
 
 ## 2. 先做零费用预览
 
@@ -35,9 +35,9 @@ SoloFlow 只读取当前目录的 `.env`。不要把真实密钥写进 Skill 或
 uvx soloflow run content-writer "为 TrailLight Mini 写一篇产品介绍" --dry-run
 ```
 
-输出会包含 Skill 的身份、写作目标、风格、规则和你的任务。`--dry-run` 不请求模型。
+输出会包含工作手册的身份、写作目标、风格、规则和你的任务。`--dry-run` 不请求模型。
 
-## 3. 运行真实 Skill
+## 3. 运行真实工作手册
 
 ```bash
 uvx soloflow run content-writer "为 TrailLight Mini 写一篇产品介绍。已知：180 克、三档亮度、USB-C 充电、面向周末露营新手。不得编造其他参数。"
@@ -45,9 +45,9 @@ uvx soloflow run content-writer "为 TrailLight Mini 写一篇产品介绍。已
 
 SoloFlow 使用 `deepseek/deepseek-v4-flash` 生成内容，并显示 token 用量。事实仍需人工复核。
 
-## 4. 看懂 Skill 文件
+## 4. 看懂工作手册文件
 
-内置示例位于 [`skills/writing/content-writer/SKILL.md`](../skills/writing/content-writer/SKILL.md)：
+内置兼容示例位于 [`skills/writing/content-writer/SKILL.md`](../skills/writing/content-writer/SKILL.md)。新建工作手册会使用 `playbooks/<name>/PLAYBOOK.md`：
 
 ```yaml
 ---
@@ -61,7 +61,7 @@ rules:
 ---
 ```
 
-frontmatter 保存模型配置和规则，下面的 Markdown 是具体工作方法。复制并修改这个文件，就能得到自己的 Skill。
+frontmatter 保存模型配置和规则，下面的 Markdown 是具体工作方法。复制并修改这个文件，就能得到自己的工作手册。
 
 ## 5. 执行完整 Flow
 
@@ -97,13 +97,13 @@ uvx soloflow flow resume <run-id>
 
 ## 7. 可选：使用 Agent
 
-Agent 给 Skill 增加固定角色。下面的命令会让“内容主编”执行写作任务：
+Agent 给工作手册增加固定角色。下面的命令会让“内容主编”执行写作任务：
 
 ```bash
 uvx soloflow agent run content-editor "为 TrailLight Mini 写一篇产品介绍"
 ```
 
-首次使用只需掌握 Skill；需要稳定的人格和行为规则时再使用 Agent。
+首次使用只需掌握工作手册；需要稳定的人格和行为规则时再使用 Agent。
 
 ## 常见问题
 

@@ -1,12 +1,12 @@
 # Architecture
 
-SoloFlow v2 只保留一条核心路径：加载文件资产，渲染 Prompt，调用 DeepSeek，保存结果。
+SoloFlow v2 只保留一条核心路径：加载工作手册等文件资产，渲染 Prompt，调用 DeepSeek，保存结果。
 
 ```mermaid
 flowchart LR
     CLI["CLI"] --> Runner["Core Runner"]
     MCP["MCP（高级入口）"] --> Runner
-    Runner --> Assets["Skill / Flow / Agent"]
+    Runner --> Assets["Playbook / Flow / Agent"]
     Runner --> LLM["httpx → DeepSeek"]
     Runner --> Runs[".soloflow/runs"]
     Runs --> Live["Rich 实时视图"]
@@ -14,21 +14,21 @@ flowchart LR
 
 ## 三种资产
 
-- Skill：包含模型配置、Prompt 和规则的 `SKILL.md`。
+- Playbook（工作手册）：包含模型配置、Prompt 和规则的 `PLAYBOOK.md`；旧项目也可使用 `SKILL.md`。
 - Flow：描述步骤依赖和输入输出映射的 `*.flow.yml`。
-- Agent：组合人格、规则和 Skill 的 `*.agent.yml`。
+- Agent：组合人格、规则和工作手册的 `*.agent.yml`。
 
 三者共用同一套发现顺序：
 
 ```text
-当前项目 → ~/.soloflow/ → 安装包内置资产
+当前项目的 `playbooks/` → 当前项目的 `skills/` → `~/.soloflow/playbooks/` → `~/.soloflow/skills/` → 安装包内置资产
 ```
 
 同名资产以前者为准。发现逻辑只存在于 `core/assets.py`。
 
 ## 执行路径
 
-`core/runner.py` 负责加载资产、拼装 Prompt 和调用 LLM。Agent 与 Flow 复用同一执行函数，不各自实现模型调用。
+`core/runner.py` 负责加载资产、拼装 Prompt 和调用 LLM。Agent 与 Flow 复用同一执行函数，不各自实现模型调用。内部仍保留 `SkillFile` 等旧名称，以保证兼容性。
 
 Flow 在执行前校验 DAG，再按拓扑层运行步骤；没有依赖关系的步骤可并行。每一步完成后写入 `.soloflow/runs/<run-id>.json`，用于实时展示和失败恢复。
 

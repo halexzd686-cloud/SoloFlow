@@ -2,6 +2,15 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/)，版本变化按 Added、Changed、Fixed、Security 分类记录。
 
+## Unreleased
+
+### Changed
+
+- 面向普通用户的名称改为 **Playbook（工作手册）**，新增 `sf playbook` 命令组。
+- 新建工作手册默认写入 `playbooks/<name>/PLAYBOOK.md`。
+- Flow 支持 `playbook:` 字段，Agent 支持 `playbooks:` 字段。
+- 保留 `sf skill`、`SKILL.md`、`skill:` 和 `skills:` 作为兼容格式；MCP 的旧 `*_skill` 工具名也继续保留。
+
 ## 2.0.0 - 2026-08-10
 
 ### Added

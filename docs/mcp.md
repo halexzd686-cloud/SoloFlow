@@ -1,6 +1,6 @@
 # MCP Integration
 
-SoloFlow 通过 JSON-RPC 2.0 over stdio 暴露 MCP 工具。
+SoloFlow 通过 JSON-RPC 2.0 over stdio 暴露 MCP 工具。MCP 中的工作手册仍沿用 `skill` 工具名，以兼容已经连接的客户端；返回内容和文档统一按 Playbook（工作手册）理解。
 
 ## Start the server
 
