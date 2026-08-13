@@ -51,7 +51,7 @@ uvx soloflow web
 sf web
 ```
 
-浏览器打开后，可以查看示例工作助手、配置 DeepSeek API Key，并用自然语言创建文字版工作助手。当前网页入口正在继续接入文件上传和结果下载能力。
+浏览器打开后，可以查看示例工作助手、配置 DeepSeek API Key，并用自然语言创建工作助手。当前支持上传 Word、Excel、CSV、PDF、文本和普通图片，生成 Markdown、Word、Excel 或 PDF 结果并下载。
 
 ### 1. 准备 DeepSeek API Key
 

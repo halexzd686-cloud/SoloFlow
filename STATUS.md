@@ -1,6 +1,6 @@
 # SoloFlow Project Status
 
-> Version: 2.0.0 | Stage: local web P0 implemented | Branch: `dev` | Released: 2026-08-10
+> Version: 2.0.0 | Stage: local web P2 file workflow implemented | Branch: `dev` | Released: 2026-08-10
 
 ## Current scope
 
@@ -12,7 +12,8 @@
 - MCP 作为高级入口保留，不进入 README 主流程；它复用同一 Core 与 Runner。
 - 本地网页 P0 已接入：`sf web` 可启动本地网页，提供示例助手首页、DeepSeek API Key 配置和默认模型保存。
 - 本地网页 P1 已接入文字版核心闭环：自然语言生成助手草稿、表单确认、试运行、保存版本、手动运行和本地运行记录。
-- 文件处理、结果预览下载和分享导入仍在后续 P2/P3 实施。
+- 本地网页 P2 已接入文件输入、敏感信息检查、建议脱敏、结果格式选择、单独下载和 ZIP 打包下载。
+- 工作助手导出、导入个人副本仍在后续 P3 实施。
 
 ## Verified locally
 
@@ -47,8 +48,8 @@
 
 ## Known limitations
 
-- 本地网页目前只支持文字输入的工作助手闭环，尚未接入 Word、Excel、PDF、图片等文件输入。
-- 结果目前以网页文本预览和本地 Markdown 运行产物为主，尚未完成 Word、Excel、PDF 导出、单文件下载和 ZIP 下载。
+- PDF 只支持可提取文本；扫描件和 OCR 暂不支持。
+- 图片输入需要用户选择带 `vl`、`vision` 或 `image` 标识的 DeepSeek 模型。
 - 工作助手导出、导入个人副本和更完整的历史管理尚未完成。
 - Runner 不自动提供浏览器、搜索、文件系统或其他外部工具。
 - Flow 暂无 fallback model、持久化队列或分布式执行。

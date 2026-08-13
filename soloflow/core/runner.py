@@ -26,7 +26,7 @@ def render_skill_prompt(skill: SkillFile, task: str) -> str:
 
 
 def execute_prompt(
-    prompt: str,
+    prompt: str | list[dict],
     *,
     base_url: str,
     api_key_env: str,

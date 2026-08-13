@@ -17,15 +17,17 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, unquote, urlparse
 
 from soloflow.assistant_store import (
     AssistantDefinition,
     AssistantStore,
     PrivacyConfirmationError,
+    PrivacyReviewError,
     draft_definition,
 )
 from soloflow.config import load_project_env
+from soloflow.file_processing import FileAttachment
 
 DEFAULT_MODEL = "deepseek-chat"
 SETTINGS_RELATIVE_PATH = Path(".soloflow") / "config" / "settings.json"
@@ -113,12 +115,21 @@ class WebAppState:
 
     def trial_assistant(self, assistant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         model = str(payload.get("model") or self.settings()["default_model"]).strip()
+        attachments = [
+            FileAttachment.from_payload(item)
+            for item in payload.get("attachments", [])
+            if isinstance(item, dict)
+        ]
         run = self.assistants.run(
             assistant_id,
             str(payload.get("input_text", "")),
             model,
             temporary_request=str(payload.get("temporary_request", "")),
             privacy_confirmed=bool(payload.get("privacy_confirmed")),
+            attachments=attachments,
+            output_formats=[str(item) for item in payload.get("output_formats", ["md"])],
+            redact=bool(payload.get("redact")),
+            privacy_override=bool(payload.get("privacy_override")),
         )
         return run.model_dump(mode="json")
 
@@ -226,13 +237,17 @@ HOME_PAGE = """<!doctype html>
         <h3 id="run-title"></h3>
         <p id="run-version" class="muted"></p>
         <div class="field-row"><label for="run-input">本次要处理的内容</label><textarea id="run-input" placeholder="粘贴本周工作记录，或输入这次要整理的内容。"></textarea></div>
+        <div class="field-row"><label for="run-files">上传材料（可选，单个文件不超过 20 MB）</label><input id="run-files" type="file" multiple accept=".docx,.xlsx,.csv,.pdf,.txt,.md,.png,.jpg,.jpeg"><div id="file-hints" class="muted">支持 Word、Excel、CSV、PDF、文本和普通图片；扫描件与 OCR 暂不支持。</div></div>
         <div class="field-row"><label for="temporary-request">本次临时要求（可选，不会自动修改助手）</label><textarea id="temporary-request" placeholder="例如：这次把问题部分写得更适合给领导看。"></textarea></div>
         <div class="field-row"><label for="run-model">本次使用模型</label><input id="run-model" value="deepseek-chat"></div>
+        <div class="field-row"><label for="output-formats">结果文件格式（可多选）</label><select id="output-formats" multiple size="4"><option value="md">Markdown</option><option value="docx">Word（.docx）</option><option value="xlsx">Excel（.xlsx）</option><option value="pdf">PDF（.pdf）</option></select><div class="muted">请至少选择一种最终格式；选择多个格式时会同时提供单独下载和 ZIP 打包下载。</div></div>
         <label><input id="run-privacy" type="checkbox"> 我确认本次内容可以发送给 DeepSeek，并已检查是否包含敏感信息。</label>
         <div class="actions"><button id="run-button">试运行</button><button class="secondary" id="save-version-button" disabled>将本次要求保存为新版本</button></div>
         <p id="run-message" class="muted"></p>
+        <div id="privacy-review" class="notice hidden"><strong>发送前检查</strong><div id="privacy-findings"></div><div class="actions"><button id="redact-and-run-button">按建议脱敏并继续</button><button class="secondary" id="manual-review-button">我手动修改后重新上传</button></div></div>
         <h3>结果预览</h3>
         <div id="run-output" class="output">运行后将在这里显示结果。</div>
+        <div id="artifact-list" class="muted"></div>
       </div>
     </div>
   </main>
@@ -372,24 +387,60 @@ HOME_PAGE = """<!doctype html>
       await loadAssistants();
       await selectAssistant(data.id);
     });
-    document.querySelector('#run-button').addEventListener('click', async () => {
+    async function readFilePayload(file) {
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ filename: file.name, content_base64: String(reader.result).split(',')[1] || '' });
+        reader.onerror = () => reject(new Error(`无法读取文件：${file.name}`));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function selectedFilePayloads() {
+      return await Promise.all(Array.from(document.querySelector('#run-files').files || []).map(readFilePayload));
+    }
+
+    async function runSelectedAssistant(options = {}) {
       const message = document.querySelector('#run-message');
       const confirmed = document.querySelector('#run-privacy').checked;
       if (!confirmed) { showMessage(message, '请先确认本次内容可以发送给 DeepSeek，并检查敏感信息。', true); return; }
-      showMessage(message, '正在运行工作助手，请稍候…');
+      showMessage(message, '正在本地检查材料并运行工作助手，请稍候…');
       const temporary = document.querySelector('#temporary-request').value;
+      const formats = Array.from(document.querySelector('#output-formats').selectedOptions).map(option => option.value);
+      if (!formats.length) { showMessage(message, '请先选择最终结果需要的文件格式。', true); return; }
       const response = await fetch(`/api/assistants/${currentAssistant.id}/trial`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
         input_text: document.querySelector('#run-input').value,
+        attachments: await selectedFilePayloads(),
         temporary_request: temporary,
         model: document.querySelector('#run-model').value,
-        privacy_confirmed: confirmed
+        output_formats: formats,
+        privacy_confirmed: confirmed,
+        redact: Boolean(options.redact),
+        privacy_override: Boolean(options.privacyOverride)
       })});
       const data = await response.json();
-      if (!response.ok) { showMessage(message, data.error || '运行失败', true); return; }
+      if (!response.ok) {
+        if (data.code === 'privacy_review') {
+          document.querySelector('#privacy-review').classList.remove('hidden');
+          document.querySelector('#privacy-findings').innerHTML = `<p>${data.error}</p><ul>${(data.findings || []).map(item => `<li>${item.label}（${item.masked_sample}）：${item.suggestion}</li>`).join('')}</ul>`;
+        }
+        showMessage(message, data.error || '运行失败', true);
+        return;
+      }
+      document.querySelector('#privacy-review').classList.add('hidden');
       lastTemporaryRequest = temporary.trim();
       document.querySelector('#run-output').textContent = data.output || '模型没有返回内容。';
       document.querySelector('#save-version-button').disabled = !lastTemporaryRequest;
+      const artifactList = document.querySelector('#artifact-list');
+      artifactList.innerHTML = `<p>结果文件：</p><ul>${(data.artifacts || []).map(item => `<li><a href="/api/runs/${data.id}/artifacts/${encodeURIComponent(item.name)}" download>${item.name}</a></li>`).join('')}</ul>`;
       showMessage(message, `本次任务已完成，运行记录已保存在本机（${data.id}）。`);
+    }
+
+    document.querySelector('#run-button').addEventListener('click', () => runSelectedAssistant());
+    document.querySelector('#redact-and-run-button').addEventListener('click', () => runSelectedAssistant({redact: true}));
+    document.querySelector('#manual-review-button').addEventListener('click', () => {
+      document.querySelector('#privacy-review').classList.add('hidden');
+      showMessage(document.querySelector('#run-message'), '请手动修改内容或文件后重新上传，再次点击运行。');
     });
     document.querySelector('#save-version-button').addEventListener('click', async () => {
       if (!currentAssistant || !lastTemporaryRequest) return;
@@ -432,8 +483,8 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
 
         def _read_body(self) -> dict[str, Any]:
             length = int(self.headers.get("Content-Length", "0"))
-            if length > 1024 * 1024:
-                raise ValueError("请求内容过大")
+            if length > 50 * 1024 * 1024:
+                raise ValueError("请求内容过大（上限 50 MB）")
             raw = self.rfile.read(length)
             data = json.loads(raw.decode("utf-8")) if raw else {}
             if not isinstance(data, dict):
@@ -461,6 +512,29 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
                     )
                 except FileNotFoundError as exc:
                     self._json_response(HTTPStatus.NOT_FOUND, {"error": str(exc)})
+            elif path.startswith("/api/runs/"):
+                parts = path.strip("/").split("/")
+                if len(parts) != 5 or parts[0:2] != ["api", "runs"] or parts[3] != "artifacts":
+                    self._json_response(HTTPStatus.NOT_FOUND, {"error": "结果文件不存在"})
+                    return
+                run_dir = state.assistants.runs_dir / parts[2]
+                artifact_path = (run_dir / "artifacts" / unquote(parts[4])).resolve()
+                if not artifact_path.is_file() or not artifact_path.is_relative_to(
+                    run_dir.resolve()
+                ):
+                    self._json_response(HTTPStatus.NOT_FOUND, {"error": "结果文件不存在"})
+                    return
+                body = artifact_path.read_bytes()
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header(
+                    "Content-Disposition",
+                    "attachment; filename=soloflow-result; "
+                    f"filename*=UTF-8''{quote(artifact_path.name)}",
+                )
+                self.end_headers()
+                self.wfile.write(body)
             else:
                 self._json_response(HTTPStatus.NOT_FOUND, {"error": "页面不存在"})
 
@@ -492,6 +566,16 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
                     return
             except FileNotFoundError as exc:
                 self._json_response(HTTPStatus.NOT_FOUND, {"error": str(exc)})
+                return
+            except PrivacyReviewError as exc:
+                self._json_response(
+                    HTTPStatus.CONFLICT,
+                    {
+                        "code": "privacy_review",
+                        "error": str(exc),
+                        "findings": [item.model_dump(mode="json") for item in exc.findings],
+                    },
+                )
                 return
             except PrivacyConfirmationError as exc:
                 self._json_response(HTTPStatus.CONFLICT, {"error": str(exc)})

@@ -15,12 +15,28 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from soloflow.artifacts import ArtifactRecord, write_artifacts, write_zip
 from soloflow.core.runner import execute_prompt
+from soloflow.file_processing import (
+    FileAttachment,
+    SensitiveFinding,
+    attachment_content,
+    redact_text,
+    scan_sensitive,
+)
 from soloflow.llm.client import DEFAULT_API_KEY_ENV, DEFAULT_BASE_URL, DEFAULT_MODEL
 
 
 class PrivacyConfirmationError(ValueError):
     """用户尚未确认将必要内容发送给 DeepSeek。"""
+
+
+class PrivacyReviewError(ValueError):
+    """本地检查发现敏感信息，需要用户选择脱敏或重新上传。"""
+
+    def __init__(self, findings: list[SensitiveFinding]):
+        self.findings = findings
+        super().__init__("检测到可能的敏感信息，请选择按建议脱敏或手动修改后重新上传")
 
 
 class InputField(BaseModel):
@@ -75,6 +91,9 @@ class RunRecord(BaseModel):
     status: str
     input_text: str
     temporary_request: str = ""
+    input_files: list[str] = Field(default_factory=list)
+    privacy_findings: list[SensitiveFinding] = Field(default_factory=list)
+    artifacts: list[ArtifactRecord] = Field(default_factory=list)
     output: str = ""
     error: str | None = None
     created_at: str
@@ -242,11 +261,29 @@ class AssistantStore:
         model: str,
         temporary_request: str = "",
         privacy_confirmed: bool = False,
+        attachments: list[FileAttachment] | None = None,
+        output_formats: list[str] | None = None,
+        redact: bool = False,
+        privacy_override: bool = False,
     ) -> RunRecord:
+        if not input_text.strip():
+            input_text = ""
+
+        attachments = attachments or []
+        findings = scan_sensitive(input_text) + [
+            finding for attachment in attachments for finding in attachment.findings
+        ]
+        if findings and not redact and not privacy_override:
+            raise PrivacyReviewError(findings)
         if not privacy_confirmed:
             raise PrivacyConfirmationError("运行前必须确认必要内容将发送给 DeepSeek")
-        if not input_text.strip():
-            raise ValueError("请先填写本次任务内容")
+        if not input_text.strip() and not attachments:
+            raise ValueError("请先填写本次任务内容或上传文件")
+
+        if redact:
+            input_text = redact_text(input_text)
+            for attachment in attachments:
+                attachment.text = redact_text(attachment.text)
 
         record = self.get(assistant_id)
         run = RunRecord(
@@ -257,13 +294,39 @@ class AssistantStore:
             status="running",
             input_text=input_text,
             temporary_request=temporary_request,
+            input_files=[attachment.filename for attachment in attachments],
+            privacy_findings=findings,
             created_at=_now(),
         )
         self.save_run(run)
+        run_dir = self.runs_dir / run.id
+        input_dir = run_dir / "inputs"
+        redacted_dir = run_dir / "redacted"
+        for attachment in attachments:
+            if attachment.data_base64:
+                import base64
+
+                input_dir.mkdir(parents=True, exist_ok=True)
+                (input_dir / attachment.filename).write_bytes(
+                    base64.b64decode(attachment.data_base64)
+                )
+            if redact and attachment.text:
+                redacted_dir.mkdir(parents=True, exist_ok=True)
+                (redacted_dir / f"{Path(attachment.filename).stem}.txt").write_text(
+                    attachment.text, encoding="utf-8"
+                )
+
         prompt = _run_prompt(record.current, input_text, temporary_request)
+        attachment_prompt = attachment_content(attachments, model)
+        if isinstance(attachment_prompt, str):
+            if attachment_prompt.strip():
+                prompt = f"{prompt}\n\n附件内容：\n{attachment_prompt}"
+            model_content: str | list[dict[str, Any]] = prompt
+        else:
+            model_content = [{"type": "text", "text": prompt}, *attachment_prompt]
         try:
             result = execute_prompt(
-                prompt,
+                model_content,
                 base_url=DEFAULT_BASE_URL,
                 api_key_env=DEFAULT_API_KEY_ENV,
                 model=model,
@@ -279,6 +342,15 @@ class AssistantStore:
         run.status = "completed"
         run.output = result.content
         run.completed_at = _now()
+        artifacts = write_artifacts(
+            run_dir / "artifacts",
+            record.current.name,
+            result.content,
+            output_formats or ["md"],
+        )
+        if len(artifacts) > 1:
+            artifacts.append(write_zip(run_dir / "artifacts", artifacts))
+        run.artifacts = artifacts
         return self.save_run(run)
 
 

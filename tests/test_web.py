@@ -2,6 +2,8 @@
 
 import json
 import threading
+from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 import pytest
@@ -11,6 +13,7 @@ from soloflow.assistant_store import (
     AssistantStore,
     InputField,
     PrivacyConfirmationError,
+    PrivacyReviewError,
 )
 from soloflow.llm.client import LLMResult
 from soloflow.web import create_server
@@ -121,6 +124,97 @@ def test_web_draft_requires_privacy_confirmation(tmp_path):
         with pytest.raises(Exception) as error:
             urlopen(request)
         assert "409" in str(error.value)
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=2)
+        server.server_close()
+
+
+def test_run_requires_privacy_review_and_creates_multiple_artifacts(tmp_path, monkeypatch):
+    store = AssistantStore(tmp_path)
+    definition = AssistantDefinition(
+        name="隐私检查测试",
+        goal="整理输入",
+        output_format="Markdown",
+    )
+    record = store.create(definition)
+    monkeypatch.setattr(
+        "soloflow.assistant_store.execute_prompt",
+        lambda *args, **kwargs: LLMResult(content="# 结果\n已完成"),
+    )
+    with pytest.raises(PrivacyReviewError):
+        store.run(
+            record.id,
+            "客户电话 13800138000",
+            "deepseek-chat",
+            privacy_confirmed=True,
+        )
+    run = store.run(
+        record.id,
+        "客户电话 13800138000",
+        "deepseek-chat",
+        privacy_confirmed=True,
+        redact=True,
+        output_formats=["md", "txt"],
+    )
+    assert run.status == "completed"
+    assert {item.name for item in run.artifacts} == {
+        "隐私检查测试.md",
+        "隐私检查测试.txt",
+        "结果文件.zip",
+    }
+    redacted = list((tmp_path / ".soloflow/runs" / run.id / "redacted").glob("*.txt"))
+    assert not redacted
+
+
+def test_web_trial_returns_privacy_review_and_downloadable_artifacts(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "soloflow.assistant_store.execute_prompt",
+        lambda *args, **kwargs: LLMResult(content="# 周报\n已完成数据汇总"),
+    )
+    server = create_server(tmp_path, port=0)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    def post(path, value):
+        request = Request(
+            base_url + path,
+            data=json.dumps(value).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        return urlopen(request)
+
+    try:
+        with post(
+            "/api/assistants", {"definition": {"name": "周报", "goal": "整理周报"}}
+        ) as response:
+            assistant = json.loads(response.read())
+        run_payload = {
+            "input_text": "本周客户电话 13800138000",
+            "attachments": [],
+            "model": "deepseek-chat",
+            "output_formats": ["md", "txt"],
+            "privacy_confirmed": True,
+        }
+        try:
+            post(f"/api/assistants/{assistant['id']}/trial", run_payload)
+        except HTTPError as error:
+            assert error.code == 409
+            assert json.loads(error.read())["code"] == "privacy_review"
+        else:
+            raise AssertionError("敏感信息未触发隐私复核")
+
+        run_payload["redact"] = True
+        with post(f"/api/assistants/{assistant['id']}/trial", run_payload) as response:
+            run = json.loads(response.read())
+        artifact = next(item for item in run["artifacts"] if item["name"].endswith(".txt"))
+        with urlopen(
+            f"{base_url}/api/runs/{run['id']}/artifacts/{quote(artifact['name'])}"
+        ) as response:
+            assert response.status == 200
+            assert response.read()
     finally:
         server.shutdown()
         server_thread.join(timeout=2)
