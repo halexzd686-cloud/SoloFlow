@@ -47,6 +47,8 @@ uvx soloflow run content-writer "为我的产品写一篇介绍" --dry-run
 - **Flow**：把多个工作手册按依赖顺序串起来，例如 [`blog-pipeline`](flows/blog-pipeline.flow.yml)。
 - **Agent（可选）**：给工作手册加上固定角色和行为规则，例如 [`content-editor`](agents/content-editor.agent.yml)。
 
+Flow 还支持面向实际工作的控制：用 `output_format: json` 产出可判断的结果，用 `when` 控制后续步骤，用 `type: approval` 在发布、发信或提交前暂停等待人工确认。
+
 ## 常用命令
 
 | 命令 | 用途 |
