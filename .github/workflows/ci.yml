@@ -63,6 +63,7 @@ jobs:
           cd /tmp/soloflow-smoke-cwd
           /tmp/smoke-venv/bin/sf --help > /dev/null
           /tmp/smoke-venv/bin/sf version
+          /tmp/smoke-venv/bin/sf playbook show content-writer --json > /dev/null
           /tmp/smoke-venv/bin/sf skill show content-writer --json > /dev/null
           /tmp/smoke-venv/bin/sf agent show content-editor --json > /dev/null
           /tmp/smoke-venv/bin/sf flow show blog-pipeline > /dev/null

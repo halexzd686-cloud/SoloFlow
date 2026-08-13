@@ -30,6 +30,7 @@ jobs:
           mkdir -p /tmp/soloflow-release-cwd
           cd /tmp/soloflow-release-cwd
           /tmp/soloflow-release-venv/bin/sf version
+          /tmp/soloflow-release-venv/bin/sf playbook show content-writer --json > /dev/null
           /tmp/soloflow-release-venv/bin/sf skill show content-writer --json > /dev/null
           /tmp/soloflow-release-venv/bin/sf agent show content-editor --json > /dev/null
           /tmp/soloflow-release-venv/bin/sf flow run blog-pipeline --dry-run -i topic=test > /dev/null
