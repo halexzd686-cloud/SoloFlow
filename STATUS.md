@@ -11,12 +11,13 @@
 - Flow 支持 JSON 输出契约、条件节点和人工审批节点；审批结果通过运行记录恢复。
 - MCP 作为高级入口保留，不进入 README 主流程；它复用同一 Core 与 Runner。
 - 本地网页 P0 已接入：`sf web` 可启动本地网页，提供示例助手首页、DeepSeek API Key 配置和默认模型保存。
-- 网页工作助手创建、文件处理、结果预览下载和分享导入仍在后续 P1/P2 实施。
+- 本地网页 P1 已接入文字版核心闭环：自然语言生成助手草稿、表单确认、试运行、保存版本、手动运行和本地运行记录。
+- 文件处理、结果预览下载和分享导入仍在后续 P2/P3 实施。
 
 ## Verified locally
 
 - Windows 11、Python 3.12.13。
-- `180 passed`。
+- `182 passed`。
 - Ruff check 通过，34 个 Python 文件 format check 通过。
 - wheel 与 sdist 构建通过。
 - GitHub Actions 的 Windows/Linux × Python 3.12/3.13 测试矩阵与 Ubuntu build/clean-wheel smoke 通过。
@@ -46,8 +47,9 @@
 
 ## Known limitations
 
-- 本地网页目前是 P0 骨架，示例助手暂不可直接运行。
-- 网页尚未接入工作助手创建、文件上传、隐私确认、结果生成、下载和分享流程。
+- 本地网页目前只支持文字输入的工作助手闭环，尚未接入 Word、Excel、PDF、图片等文件输入。
+- 结果目前以网页文本预览和本地 Markdown 运行产物为主，尚未完成 Word、Excel、PDF 导出、单文件下载和 ZIP 下载。
+- 工作助手导出、导入个人副本和更完整的历史管理尚未完成。
 - Runner 不自动提供浏览器、搜索、文件系统或其他外部工具。
 - Flow 暂无 fallback model、持久化队列或分布式执行。
 

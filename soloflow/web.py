@@ -1,7 +1,7 @@
 """SoloFlow 本地网页入口。
 
 P0 只提供本地网页骨架和基础设置。真正的工作助手运行流程由后续阶段接入
-现有 Runner 与文件处理层；本模块不直接实现模型调用。
+现有 Runner 与文件处理层；工作助手应用层负责统一编排模型调用。
 """
 
 # 内嵌 HTML/CSS/JavaScript 为了可读性保留长行。
@@ -19,13 +19,19 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from soloflow.assistant_store import (
+    AssistantDefinition,
+    AssistantStore,
+    PrivacyConfirmationError,
+    draft_definition,
+)
 from soloflow.config import load_project_env
 
 DEFAULT_MODEL = "deepseek-chat"
 SETTINGS_RELATIVE_PATH = Path(".soloflow") / "config" / "settings.json"
 
 
-def _json_bytes(payload: dict[str, Any]) -> bytes:
+def _json_bytes(payload: Any) -> bytes:
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
@@ -66,12 +72,13 @@ def _update_dotenv(path: Path, key: str, value: str) -> None:
 
 
 class WebAppState:
-    """本地网页所需的最小应用状态。"""
+    """本地网页所需的应用状态。"""
 
     def __init__(self, project_dir: Path | None = None):
         self.project_dir = (project_dir or Path.cwd()).resolve()
         self.settings_path = self.project_dir / SETTINGS_RELATIVE_PATH
         load_project_env(self.project_dir)
+        self.assistants = AssistantStore(self.project_dir)
 
     def settings(self) -> dict[str, Any]:
         values = _read_json(self.settings_path)
@@ -92,6 +99,35 @@ class WebAppState:
 
         _write_json(self.settings_path, {"default_model": model})
         return self.settings()
+
+    def draft_assistant(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if not payload.get("privacy_confirmed"):
+            raise PrivacyConfirmationError("生成助手草稿前必须确认描述会发送给 DeepSeek")
+        model = str(payload.get("model") or self.settings()["default_model"]).strip()
+        definition = draft_definition(str(payload.get("description", "")), model)
+        return definition.model_dump(mode="json")
+
+    def create_assistant(self, payload: dict[str, Any]) -> dict[str, Any]:
+        definition = AssistantDefinition.model_validate(payload.get("definition", {}))
+        return self.assistants.create(definition).model_dump(mode="json")
+
+    def trial_assistant(self, assistant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        model = str(payload.get("model") or self.settings()["default_model"]).strip()
+        run = self.assistants.run(
+            assistant_id,
+            str(payload.get("input_text", "")),
+            model,
+            temporary_request=str(payload.get("temporary_request", "")),
+            privacy_confirmed=bool(payload.get("privacy_confirmed")),
+        )
+        return run.model_dump(mode="json")
+
+    def create_version(self, assistant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        definition = AssistantDefinition.model_validate(payload.get("definition", {}))
+        record = self.assistants.create_version(
+            assistant_id, definition, str(payload.get("change_note", ""))
+        )
+        return record.model_dump(mode="json")
 
 
 HOME_PAGE = """<!doctype html>
@@ -129,6 +165,13 @@ HOME_PAGE = """<!doctype html>
     input { box-sizing: border-box; width: 100%; border: 1px solid #cbd4e3; border-radius: 8px; padding: 11px; font-size: 15px; }
     .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
     .muted { color: #6b7689; font-size: 14px; }
+    textarea { box-sizing: border-box; width: 100%; min-height: 112px; resize: vertical; border: 1px solid #cbd4e3; border-radius: 8px; padding: 11px; font: inherit; line-height: 1.5; }
+    .field-row { margin: 14px 0; }
+    .field-row label { margin-top: 0; }
+    .output { white-space: pre-wrap; background: #f7f9fc; border-radius: 8px; padding: 16px; min-height: 80px; overflow-wrap: anywhere; }
+    .assistant-item { display: flex; justify-content: space-between; gap: 14px; align-items: center; border-top: 1px solid #e5eaf2; padding: 12px 0; }
+    .assistant-item:first-child { border-top: 0; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
@@ -141,7 +184,7 @@ HOME_PAGE = """<!doctype html>
     <div class="bar">
       <div>
         <h2>从示例开始</h2>
-        <div class="muted">这是 P0 网页入口，工作助手创建和文件处理将在后续版本接入。</div>
+        <div class="muted">先用自然语言定义一项重复工作，再试运行并保存为自己的工作助手。</div>
       </div>
       <button class="secondary" id="settings-button">设置 DeepSeek</button>
     </div>
@@ -155,6 +198,42 @@ HOME_PAGE = """<!doctype html>
       <h2>开始使用前</h2>
       <p id="key-status" class="status">正在检查 DeepSeek 配置…</p>
       <p class="notice">运行工作助手时，必要内容会发送到你配置的 DeepSeek 模型。正式运行前，SoloFlow 会先提示你检查材料是否敏感。</p>
+    </div>
+    <div class="panel" style="margin-top: 24px">
+      <h2>创建工作助手</h2>
+      <p class="muted">用平时说话的方式描述一项你反复做的工作。SoloFlow 会先整理成草稿，你确认后再保存。</p>
+      <div class="field-row"><label for="assistant-description">我想重复处理的工作</label><textarea id="assistant-description" placeholder="例如：我每周要提交周报，包含本周完成、未完成、遇到的问题和下周计划，语气要简洁、适合给领导看。"></textarea></div>
+      <div class="field-row"><label for="draft-model">本次使用模型</label><input id="draft-model" value="deepseek-chat" placeholder="deepseek-chat"></div>
+      <label><input id="draft-privacy" type="checkbox"> 我确认这段工作描述可以发送给 DeepSeek，且可能产生 API 费用。</label>
+      <div class="actions"><button id="draft-button">生成助手草稿</button></div>
+      <p id="draft-message" class="muted"></p>
+      <div id="draft-panel" class="hidden">
+        <h3>确认助手内容</h3>
+        <div class="field-row"><label for="draft-name">助手名称</label><input id="draft-name"></div>
+        <div class="field-row"><label for="draft-description">用途说明</label><textarea id="draft-description"></textarea></div>
+        <div class="field-row"><label for="draft-goal">工作目标</label><textarea id="draft-goal"></textarea></div>
+        <div class="field-row"><label for="draft-steps">工作步骤（每行一步）</label><textarea id="draft-steps"></textarea></div>
+        <div class="field-row"><label for="draft-rules">注意事项（每行一条）</label><textarea id="draft-rules"></textarea></div>
+        <div class="field-row"><label for="draft-format">最终输出格式</label><input id="draft-format"></div>
+        <div class="field-row"><label for="draft-inputs">需要用户填写的内容（每行一项）</label><textarea id="draft-inputs"></textarea></div>
+        <div class="actions"><button class="secondary" id="cancel-draft-button">放弃草稿</button><button id="save-assistant-button">保存为工作助手</button></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top: 24px">
+      <h2>我的工作助手</h2>
+      <div id="assistant-list" class="muted">还没有保存的工作助手。</div>
+      <div id="run-panel" class="hidden">
+        <h3 id="run-title"></h3>
+        <p id="run-version" class="muted"></p>
+        <div class="field-row"><label for="run-input">本次要处理的内容</label><textarea id="run-input" placeholder="粘贴本周工作记录，或输入这次要整理的内容。"></textarea></div>
+        <div class="field-row"><label for="temporary-request">本次临时要求（可选，不会自动修改助手）</label><textarea id="temporary-request" placeholder="例如：这次把问题部分写得更适合给领导看。"></textarea></div>
+        <div class="field-row"><label for="run-model">本次使用模型</label><input id="run-model" value="deepseek-chat"></div>
+        <label><input id="run-privacy" type="checkbox"> 我确认本次内容可以发送给 DeepSeek，并已检查是否包含敏感信息。</label>
+        <div class="actions"><button id="run-button">试运行</button><button class="secondary" id="save-version-button" disabled>将本次要求保存为新版本</button></div>
+        <p id="run-message" class="muted"></p>
+        <h3>结果预览</h3>
+        <div id="run-output" class="output">运行后将在这里显示结果。</div>
+      </div>
     </div>
   </main>
   <dialog id="settings-dialog">
@@ -173,13 +252,80 @@ HOME_PAGE = """<!doctype html>
     const dialog = document.querySelector('#settings-dialog');
     const status = document.querySelector('#key-status');
     const message = document.querySelector('#settings-message');
+    let currentDraft = null;
+    let currentAssistant = null;
+    let lastTemporaryRequest = '';
+
+    function lines(value) {
+      return value.split('\\\\n').map(item => item.trim()).filter(Boolean);
+    }
+
+    function showMessage(target, text, error = false) {
+      target.textContent = text;
+      target.style.color = error ? '#b33636' : '';
+    }
+
     async function loadSettings() {
       const response = await fetch('/api/settings');
       const data = await response.json();
       status.textContent = data.api_key_configured ? `DeepSeek 已配置 · 默认模型：${data.default_model}` : '还没有配置 DeepSeek API Key';
       status.className = data.api_key_configured ? 'status ok' : 'status';
       document.querySelector('#default-model').value = data.default_model;
+      document.querySelector('#draft-model').value = data.default_model;
+      document.querySelector('#run-model').value = data.default_model;
     }
+
+    async function loadAssistants() {
+      const response = await fetch('/api/assistants');
+      const assistants = await response.json();
+      const container = document.querySelector('#assistant-list');
+      if (!assistants.length) { container.textContent = '还没有保存的工作助手。'; return; }
+      container.innerHTML = assistants.map(item => `<div class="assistant-item"><div><strong>${item.current.name}</strong><div class="muted">${item.current.description || item.current.goal} · v${item.current_version}</div></div><button class="secondary" data-assistant-id="${item.id}">使用</button></div>`).join('');
+      container.querySelectorAll('[data-assistant-id]').forEach(button => button.addEventListener('click', () => selectAssistant(button.dataset.assistantId)));
+    }
+
+    async function selectAssistant(id) {
+      const response = await fetch(`/api/assistants/${id}`);
+      currentAssistant = await response.json();
+      document.querySelector('#run-panel').classList.remove('hidden');
+      document.querySelector('#run-title').textContent = currentAssistant.current.name;
+      document.querySelector('#run-version').textContent = `当前版本：v${currentAssistant.current_version} · ${currentAssistant.current.description || currentAssistant.current.goal}`;
+      document.querySelector('#run-model').value = currentAssistant.current.default_model;
+      document.querySelector('#run-output').textContent = '运行后将在这里显示结果。';
+      document.querySelector('#save-version-button').disabled = true;
+      document.querySelector('#run-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function populateDraft(definition) {
+      currentDraft = definition;
+      document.querySelector('#draft-name').value = definition.name || '';
+      document.querySelector('#draft-description').value = definition.description || '';
+      document.querySelector('#draft-goal').value = definition.goal || '';
+      document.querySelector('#draft-steps').value = (definition.steps || []).join('\\\\n');
+      document.querySelector('#draft-rules').value = (definition.rules || []).join('\\\\n');
+      document.querySelector('#draft-format').value = definition.output_format || 'Markdown';
+      const fields = (definition.input_fields || []).map(item => item.label).join('\\\\n');
+      document.querySelector('#draft-inputs').value = fields;
+      document.querySelector('#draft-panel').classList.remove('hidden');
+    }
+
+    function readDraftForm() {
+      return { ...currentDraft,
+        name: document.querySelector('#draft-name').value.trim(),
+        description: document.querySelector('#draft-description').value.trim(),
+        goal: document.querySelector('#draft-goal').value.trim(),
+        steps: lines(document.querySelector('#draft-steps').value),
+        rules: lines(document.querySelector('#draft-rules').value),
+        output_format: document.querySelector('#draft-format').value.trim() || 'Markdown',
+        input_fields: lines(document.querySelector('#draft-inputs').value).map((label, index) => ({
+          key: (currentDraft.input_fields[index] || {}).key || `input-${index + 1}`,
+          label,
+          description: (currentDraft.input_fields[index] || {}).description || '',
+          required: (currentDraft.input_fields[index] || {}).required !== false
+        }))
+      };
+    }
+
     document.querySelector('#settings-button').addEventListener('click', () => { message.textContent = ''; dialog.showModal(); });
     document.querySelector('#cancel-button').addEventListener('click', () => dialog.close());
     document.querySelector('#settings-form').addEventListener('submit', async (event) => {
@@ -195,7 +341,72 @@ HOME_PAGE = """<!doctype html>
       await loadSettings();
       setTimeout(() => dialog.close(), 500);
     });
+
+    document.querySelector('#draft-button').addEventListener('click', async () => {
+      const message = document.querySelector('#draft-message');
+      const confirmed = document.querySelector('#draft-privacy').checked;
+      if (!confirmed) { showMessage(message, '请先确认工作描述可以发送给 DeepSeek。', true); return; }
+      showMessage(message, '正在整理助手草稿，请稍候…');
+      const response = await fetch('/api/assistant-drafts', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+        description: document.querySelector('#assistant-description').value,
+        model: document.querySelector('#draft-model').value,
+        privacy_confirmed: confirmed
+      })});
+      const data = await response.json();
+      if (!response.ok) { showMessage(message, data.error || '生成草稿失败', true); return; }
+      showMessage(message, '草稿已生成，请检查并修改后保存。');
+      populateDraft(data);
+    });
+    document.querySelector('#cancel-draft-button').addEventListener('click', () => {
+      currentDraft = null;
+      document.querySelector('#draft-panel').classList.add('hidden');
+    });
+    document.querySelector('#save-assistant-button').addEventListener('click', async () => {
+      const message = document.querySelector('#draft-message');
+      const response = await fetch('/api/assistants', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ definition: readDraftForm() }) });
+      const data = await response.json();
+      if (!response.ok) { showMessage(message, data.error || '保存失败', true); return; }
+      currentDraft = null;
+      document.querySelector('#draft-panel').classList.add('hidden');
+      showMessage(message, '工作助手已保存，可以在“我的工作助手”中运行。');
+      await loadAssistants();
+      await selectAssistant(data.id);
+    });
+    document.querySelector('#run-button').addEventListener('click', async () => {
+      const message = document.querySelector('#run-message');
+      const confirmed = document.querySelector('#run-privacy').checked;
+      if (!confirmed) { showMessage(message, '请先确认本次内容可以发送给 DeepSeek，并检查敏感信息。', true); return; }
+      showMessage(message, '正在运行工作助手，请稍候…');
+      const temporary = document.querySelector('#temporary-request').value;
+      const response = await fetch(`/api/assistants/${currentAssistant.id}/trial`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+        input_text: document.querySelector('#run-input').value,
+        temporary_request: temporary,
+        model: document.querySelector('#run-model').value,
+        privacy_confirmed: confirmed
+      })});
+      const data = await response.json();
+      if (!response.ok) { showMessage(message, data.error || '运行失败', true); return; }
+      lastTemporaryRequest = temporary.trim();
+      document.querySelector('#run-output').textContent = data.output || '模型没有返回内容。';
+      document.querySelector('#save-version-button').disabled = !lastTemporaryRequest;
+      showMessage(message, `本次任务已完成，运行记录已保存在本机（${data.id}）。`);
+    });
+    document.querySelector('#save-version-button').addEventListener('click', async () => {
+      if (!currentAssistant || !lastTemporaryRequest) return;
+      const definition = { ...currentAssistant.current, rules: [...(currentAssistant.current.rules || []), lastTemporaryRequest] };
+      const response = await fetch(`/api/assistants/${currentAssistant.id}/versions`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ definition, change_note: lastTemporaryRequest }) });
+      const data = await response.json();
+      if (!response.ok) { showMessage(document.querySelector('#run-message'), data.error || '保存新版本失败', true); return; }
+      currentAssistant = data;
+      lastTemporaryRequest = '';
+      document.querySelector('#save-version-button').disabled = true;
+      document.querySelector('#run-version').textContent = `当前版本：v${data.current_version} · ${data.current.description || data.current.goal}`;
+      showMessage(document.querySelector('#run-message'), `已保存为新版本 v${data.current_version}。`);
+      await loadAssistants();
+    });
+
     loadSettings().catch(() => { status.textContent = '无法读取本地设置'; });
+    loadAssistants().catch(() => { document.querySelector('#assistant-list').textContent = '无法读取本地工作助手'; });
   </script>
 </body>
 </html>
@@ -216,7 +427,7 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
             self.end_headers()
             self.wfile.write(body)
 
-        def _json_response(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
+        def _json_response(self, status: HTTPStatus, payload: Any) -> None:
             self._send(status, _json_bytes(payload), "application/json; charset=utf-8")
 
         def _read_body(self) -> dict[str, Any]:
@@ -237,18 +448,59 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
                 self._json_response(HTTPStatus.OK, {"status": "ok", "service": "soloflow-web"})
             elif path == "/api/settings":
                 self._json_response(HTTPStatus.OK, state.settings())
+            elif path == "/api/assistants":
+                self._json_response(
+                    HTTPStatus.OK,
+                    [item.model_dump(mode="json") for item in state.assistants.list()],
+                )
+            elif path.startswith("/api/assistants/"):
+                assistant_id = path.removeprefix("/api/assistants/").strip("/")
+                try:
+                    self._json_response(
+                        HTTPStatus.OK, state.assistants.get(assistant_id).model_dump(mode="json")
+                    )
+                except FileNotFoundError as exc:
+                    self._json_response(HTTPStatus.NOT_FOUND, {"error": str(exc)})
             else:
                 self._json_response(HTTPStatus.NOT_FOUND, {"error": "页面不存在"})
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
-            if path != "/api/settings":
-                self._json_response(HTTPStatus.NOT_FOUND, {"error": "接口不存在"})
-                return
             try:
-                result = state.save_settings(self._read_body())
+                payload = self._read_body()
+                if path == "/api/settings":
+                    result = state.save_settings(payload)
+                elif path == "/api/assistant-drafts":
+                    result = state.draft_assistant(payload)
+                elif path == "/api/assistants":
+                    result = state.create_assistant(payload)
+                elif path.startswith("/api/assistants/"):
+                    parts = path.strip("/").split("/")
+                    if len(parts) != 4 or parts[0:2] != ["api", "assistants"]:
+                        self._json_response(HTTPStatus.NOT_FOUND, {"error": "接口不存在"})
+                        return
+                    assistant_id, action = parts[2], parts[3]
+                    if action == "trial":
+                        result = state.trial_assistant(assistant_id, payload)
+                    elif action == "versions":
+                        result = state.create_version(assistant_id, payload)
+                    else:
+                        self._json_response(HTTPStatus.NOT_FOUND, {"error": "接口不存在"})
+                        return
+                else:
+                    self._json_response(HTTPStatus.NOT_FOUND, {"error": "接口不存在"})
+                    return
+            except FileNotFoundError as exc:
+                self._json_response(HTTPStatus.NOT_FOUND, {"error": str(exc)})
+                return
+            except PrivacyConfirmationError as exc:
+                self._json_response(HTTPStatus.CONFLICT, {"error": str(exc)})
+                return
             except (OSError, ValueError, json.JSONDecodeError) as exc:
                 self._json_response(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            except RuntimeError as exc:
+                self._json_response(HTTPStatus.BAD_GATEWAY, {"error": f"DeepSeek 请求失败：{exc}"})
                 return
             self._json_response(HTTPStatus.OK, result)
 

@@ -4,6 +4,15 @@ import json
 import threading
 from urllib.request import Request, urlopen
 
+import pytest
+
+from soloflow.assistant_store import (
+    AssistantDefinition,
+    AssistantStore,
+    InputField,
+    PrivacyConfirmationError,
+)
+from soloflow.llm.client import LLMResult
 from soloflow.web import create_server
 
 
@@ -48,6 +57,70 @@ def test_web_settings_save_key_and_model(tmp_path, monkeypatch):
             (tmp_path / ".soloflow/config/settings.json").read_text(encoding="utf-8")
         )
         assert settings == {"default_model": "deepseek-reasoner"}
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=2)
+        server.server_close()
+
+
+def test_assistant_store_creates_versions_and_runs_locally(tmp_path, monkeypatch):
+    store = AssistantStore(tmp_path)
+    definition = AssistantDefinition(
+        name="周报整理",
+        description="整理每周工作内容",
+        goal="生成结构化周报",
+        input_fields=[InputField(key="work", label="本周工作")],
+        steps=["整理完成事项", "整理问题和计划"],
+        output_format="Markdown",
+        rules=["不编造信息"],
+        default_model="deepseek-chat",
+    )
+    record = store.create(definition)
+    assert record.current_version == "1.0.0"
+    assert store.get(record.id).current.name == "周报整理"
+
+    monkeypatch.setattr(
+        "soloflow.assistant_store.execute_prompt",
+        lambda *args, **kwargs: LLMResult(content="# 周报\n已完成：整理数据"),
+    )
+    with pytest.raises(PrivacyConfirmationError):
+        store.run(record.id, "本周完成了数据整理", "deepseek-chat")
+
+    run = store.run(
+        record.id,
+        "本周完成了数据整理",
+        "deepseek-chat",
+        temporary_request="语气简洁",
+        privacy_confirmed=True,
+    )
+    assert run.status == "completed"
+    assert run.output.startswith("# 周报")
+    assert (tmp_path / ".soloflow/runs" / run.id / "result.md").exists()
+
+    updated = store.create_version(
+        record.id,
+        definition.model_copy(update={"rules": ["不编造信息", "适合给领导阅读"]}),
+        "增加领导阅读要求",
+    )
+    assert updated.current_version == "1.1.0"
+    assert len(updated.versions) == 2
+
+
+def test_web_draft_requires_privacy_confirmation(tmp_path):
+    server = create_server(tmp_path, port=0)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        payload = json.dumps({"description": "整理周报", "privacy_confirmed": False}).encode()
+        request = Request(
+            f"http://127.0.0.1:{server.server_port}/api/assistant-drafts",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with pytest.raises(Exception) as error:
+            urlopen(request)
+        assert "409" in str(error.value)
     finally:
         server.shutdown()
         server_thread.join(timeout=2)
