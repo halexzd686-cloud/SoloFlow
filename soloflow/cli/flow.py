@@ -11,6 +11,7 @@ from rich.table import Table
 from soloflow.core.assets import find_flow_path, list_flow_paths
 from soloflow.core.flow_engine import (
     _topological_sort,
+    decide_approval,
     load_flow,
     run_flow,
     validate_flow,
@@ -292,6 +293,30 @@ def resume(
     from soloflow.core.flow_engine import resume_flow
 
     result = resume_flow(run_id, dry_run=dry_run, stream=stream)
+    if result is None:
+        raise typer.Exit(1)
+
+
+@app.command()
+def approve(
+    run_id: str = typer.Argument(..., help="运行 ID"),
+    step_id: str = typer.Option(..., "--step", help="待审批节点 ID"),
+    note: str = typer.Option("", "--note", help="审批备注"),
+):
+    """批准一个人工审批节点并继续 Flow。"""
+    result = decide_approval(run_id, step_id, approved=True, note=note)
+    if result is None:
+        raise typer.Exit(1)
+
+
+@app.command()
+def reject(
+    run_id: str = typer.Argument(..., help="运行 ID"),
+    step_id: str = typer.Option(..., "--step", help="待审批节点 ID"),
+    note: str = typer.Option("", "--note", help="拒绝备注"),
+):
+    """拒绝一个人工审批节点并结束后续依赖步骤。"""
+    result = decide_approval(run_id, step_id, approved=False, note=note)
     if result is None:
         raise typer.Exit(1)
 

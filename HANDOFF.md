@@ -122,7 +122,7 @@ uvx soloflow run content-writer "为我的产品写一篇介绍"
 5. **删除空壳**：移除 `storage/`、`utils/` 空包及所有引用。
 6. **重写 LLM 调用层**：去掉 litellm 依赖，用 `httpx` 直连 OpenAI 兼容接口（`llm/client.py` 从 304 行降到约 100 行，并显著减小安装体积——`STATUS.md` 自己也承认"LiteLLM 及其依赖体积较大"）。设计要求：
    - `base_url`、`api_key_env`、`model` 做成配置项，DeepSeek 只是默认的一组取值。OpenAI、Kimi、通义等同样讲 OpenAI 兼容协议，未来接入只需改配置，无需架构变更。
-   - **保留并强化白名单护栏**：现阶段只允许 `deepseek/deepseek-v4-flash`，非白名单模型在读取 API key 之前就报错拒绝（防止朋友使用时手滑把账单打到其他付费 API）。白名单本身是一个常量列表，未来放开时改一处即可。
+   - **保留供应商边界**：固定使用 DeepSeek 官方接口和 `DEEPSEEK_API_KEY`，允许所有 `deepseek-*` 模型名；非 DeepSeek 目标在读取 API key 之前就报错拒绝（防止朋友使用时误把账单打到其他付费 API）。
    - 全项目调用 LLM 只经过一个函数（如 `chat(messages, model_config)`），这是为未来 provider（包括协议不同的 Claude）留的唯一一条"缝"。禁止提前抽象出 provider 基类或注册机制。
    - 同时删除 `models/skill.py` 中的版本约束小语言，Skill 依赖只保留精确版本号或删除该字段。
 7. **依赖清理**：`pyproject.toml` 移除 litellm、textual 及裁剪功能涉及的依赖。
@@ -139,11 +139,11 @@ uvx soloflow run content-writer "为我的产品写一篇介绍"
 
 ## 5. 明确不做的事（Non-goals）
 
-- 不增加新的模型 provider（保持 DeepSeek-only 白名单；OpenAI 兼容配置项属于阶段 3 第 6 条的既定设计，不算新增 provider；接 Claude 等独立协议留待真实需求出现）。
+- 不增加新的模型 provider（保持 DeepSeek-only；接入其他供应商或独立协议留待真实需求出现）。
 - 不为 Flow 增加条件节点、人工审批、fallback model。
 - 不引入插件系统、扩展点、hook 机制、provider 基类或注册机制。
 - 不重写测试框架或迁移测试目录结构。
-- 不改动 LICENSE、SECURITY.md、CODE_OF_CONDUCT.md。
+- 不改动 LICENSE、CODE_OF_CONDUCT.md；安全策略只做与已删除功能保持一致的文档清理。
 
 ## 6. 给执行者（Codex）的特别提醒
 
@@ -161,7 +161,7 @@ uvx soloflow run content-writer "为我的产品写一篇介绍"
 - [ ] `sf --help` 常用命令 ≤ 10 个，无 Registry/Heartbeat/iter/dashboard 相关命令。
 - [ ] `sf flow run` 执行时有 Rich 实时进度面板，`sf flow watch <run-id>` 可重新挂载查看；textual 依赖已移除。
 - [ ] `soloflow/` 代码 ≤ 4 500 行，无空包子模块，无 core→cli 反向 import。
-- [ ] LLM 调用不经过 litellm；非 `deepseek/deepseek-v4-flash` 的模型在读 key 前被拒绝；`base_url`/`api_key_env`/`model` 可配置。
+- [ ] LLM 调用不经过 litellm；非 DeepSeek 的目标在读 key 前被拒绝；`base_url`/`api_key_env`/`model` 可配置，支持所有 `deepseek-*` 模型名。
 - [ ] 三种资产共用一套发现逻辑，文档中一段话可描述。
 - [ ] `uv run pytest -q` 全绿，`ruff check` / `ruff format --check` 通过，`uv build` 通过，干净环境 wheel smoke 通过。
 - [ ] CHANGELOG v2.0.0 列出全部破坏性变更与迁移建议。

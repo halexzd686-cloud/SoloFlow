@@ -143,6 +143,8 @@ def _save_run_state(
     attempt: int = 1,
     outputs: dict[str, Any] = None,
     attempt_tokens: int = 0,
+    step_data: dict[str, Any] = None,
+    approvals: dict[str, Any] = None,
 ) -> None:
     """将 Flow 运行状态持久化到 .soloflow/runs/<run-id>.json。
 
@@ -178,10 +180,17 @@ def _save_run_state(
             (steps_dir / f"{step_id}.txt").write_text(output, encoding="utf-8")
         # 摘要截断 2000 字符（实时视图展示用）
         data["step_outputs"] = {k: v[:2000] for k, v in step_outputs.items()}
+    if step_data:
+        data["step_data"] = step_data
     if inputs:
         data["inputs"] = inputs
     if outputs:
-        data["outputs"] = {k: str(v)[:2000] for k, v in outputs.items()}
+        data["outputs"] = {
+            k: v if isinstance(v, (dict, list, bool, int, float)) else str(v)[:2000]
+            for k, v in outputs.items()
+        }
+    if approvals:
+        data["approvals"] = approvals
     run_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -212,6 +221,71 @@ def _load_step_outputs(run_id: str) -> dict[str, str]:
     return outputs
 
 
+def _load_step_data(run_id: str) -> dict[str, Any]:
+    """Load structured JSON data produced by completed Flow steps."""
+    run_file = RUNS_DIR / f"{run_id}.json"
+    if not run_file.exists():
+        return {}
+    try:
+        saved = json.loads(run_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    data = saved.get("step_data", {})
+    return data if isinstance(data, dict) else {}
+
+
+def _stringify_ref_value(value: Any) -> str:
+    """Render a reference value for prompt text while preserving JSON structure."""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value)
+
+
+def _resolve_value(ref: str, context: dict) -> Any:
+    """Resolve a reference to its native value for conditions and outputs."""
+    if not isinstance(ref, str):
+        return ref
+
+    if ref.startswith("$input.") and re.fullmatch(r"\$input\.[\w-]+", ref):
+        key = ref[7:]
+        return context.get("input", {}).get(key, ref)
+
+    step_match = re.fullmatch(
+        r"\$steps\.([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\.(output|data)"
+        r"(?:\.([\w-]+(?:\.[\w-]+)*))?",
+        ref,
+    )
+    if step_match:
+        step_id, source, path = step_match.groups()
+        if source == "output":
+            value: Any = context.get("steps", {}).get(step_id, ref)
+        else:
+            value = context.get("step_data", {}).get(step_id, ref)
+        if path and value != ref:
+            for part in path.split("."):
+                if isinstance(value, dict) and part in value:
+                    value = value[part]
+                else:
+                    return None
+        return value
+
+    if "$" in ref:
+        result = ref
+        for match in re.finditer(r"\$input\.([\w-]+)", result):
+            value = context.get("input", {}).get(match.group(1), match.group(0))
+            result = result.replace(match.group(0), _stringify_ref_value(value))
+        for match in re.finditer(
+            r"\$steps\.([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\.(output|data)"
+            r"(?:\.([\w-]+(?:\.[\w-]+)*))?",
+            result,
+        ):
+            value = _resolve_value(match.group(0), context)
+            result = result.replace(match.group(0), _stringify_ref_value(value))
+        return result
+
+    return ref
+
+
 def _resolve_ref(ref: str, context: dict) -> str:
     """解析变量引用。
 
@@ -227,33 +301,7 @@ def _resolve_ref(ref: str, context: dict) -> str:
     Returns:
         解析后的字符串。
     """
-    # 精确匹配 $input.xxx
-    if isinstance(ref, str) and ref.startswith("$input."):
-        key = ref[7:]  # 去掉 "$input."
-        return str(context.get("input", {}).get(key, ref))
-
-    # 精确匹配 $steps.<id>.output
-    m = re.match(r"\$steps\.([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\.output", str(ref))
-    if m:
-        step_id = m.group(1)
-        return str(context.get("steps", {}).get(step_id, ref))
-
-    # 字符串内的内联引用：{{ $input.xxx }} {{ $steps.xxx.output }}
-    if isinstance(ref, str) and "$" in ref:
-        result = ref
-        # 替换 $input.xxx
-        for m in re.finditer(r"\$input\.(\w+)", result):
-            key = m.group(1)
-            val = str(context.get("input", {}).get(key, m.group(0)))
-            result = result.replace(m.group(0), val)
-        # 替换 $steps.<id>.output
-        for m in re.finditer(r"\$steps\.([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\.output", result):
-            step_id = m.group(1)
-            val = str(context.get("steps", {}).get(step_id, m.group(0)))
-            result = result.replace(m.group(0), val)
-        return result
-
-    return str(ref)
+    return _stringify_ref_value(_resolve_value(ref, context))
 
 
 def _build_dag(steps: list[FlowStep]) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
@@ -331,14 +379,129 @@ def _build_step_prompt(step: FlowStep, context: dict) -> str:
             agent = load_agent(step.agent)
             loaded_skills = load_skills_for_agent(agent)
             if loaded_skills:
-                return render_agent_prompt(agent, loaded_skills, task)
+                prompt = render_agent_prompt(agent, loaded_skills, task)
+                return _append_output_contract(prompt, step)
         except (ImportError, FileNotFoundError) as e:
             console.print(
                 f"[yellow]Warning: Agent '{step.agent}' not found, "
                 f"falling back to skill '{step.skill}' ({e})[/yellow]"
             )
 
-    return render_skill_prompt(load_skill(find_skill(step.skill)), task)
+    prompt = render_skill_prompt(load_skill(find_skill(step.skill)), task)
+    return _append_output_contract(prompt, step)
+
+
+def _append_output_contract(prompt: str, step: FlowStep) -> str:
+    """Tell an LLM step how to produce machine-readable JSON when requested."""
+    if step.output_format != "json":
+        return prompt
+    schema = step.output_schema or {"type": "object"}
+    return (
+        f"{prompt}\n\n# Output Contract\n"
+        "Return only valid JSON. Do not wrap it in Markdown fences or add commentary.\n"
+        f"The JSON must follow this schema: {json.dumps(schema, ensure_ascii=False)}"
+    )
+
+
+def _parse_condition_literal(raw: str) -> Any:
+    """Parse the small set of literals supported by Flow conditions."""
+    value = raw.strip()
+    lowered = value.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    if lowered in ("null", "none"):
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            return value[1:-1]
+        return value
+
+
+def _evaluate_condition(expression: str | None, context: dict) -> bool:
+    """Evaluate a deliberately small, safe condition language.
+
+    Supported forms are ``<reference> == <literal>``,
+    ``<reference> != <literal>``, and a bare reference for truthiness.
+    Arbitrary Python expressions are intentionally not evaluated.
+    """
+    if not expression:
+        return True
+
+    reference = (
+        r"\$(?:input\.[\w-]+|steps\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
+        r"\.(?:output|data)(?:\.[\w-]+)*)"
+    )
+    match = re.fullmatch(
+        rf"\s*(?P<ref>{reference})\s*(?:(?P<op>==|!=)\s*(?P<literal>.+))?\s*",
+        expression,
+    )
+    if not match:
+        raise ValueError(
+            "条件格式不支持；请使用 `$steps.review.data.approved == true` 或一个可解析引用"
+        )
+
+    actual = _resolve_value(match.group("ref"), context)
+    if not match.group("op"):
+        return bool(actual) and actual != match.group("ref")
+
+    expected = _parse_condition_literal(match.group("literal"))
+    if match.group("op") == "==":
+        return actual == expected
+    return actual != expected
+
+
+def _validate_output_schema(value: Any, schema: dict[str, Any], path: str = "$") -> str | None:
+    """Validate the useful subset of JSON Schema needed by Flow outputs."""
+    if not schema:
+        return None
+    expected = schema.get("type")
+    type_ok = {
+        "object": isinstance(value, dict),
+        "array": isinstance(value, list),
+        "string": isinstance(value, str),
+        "number": isinstance(value, (int, float)) and not isinstance(value, bool),
+        "integer": isinstance(value, int) and not isinstance(value, bool),
+        "boolean": isinstance(value, bool),
+        "null": value is None,
+    }
+    if expected in type_ok and not type_ok[expected]:
+        return f"{path} 应为 {expected}，实际是 {type(value).__name__}"
+
+    if isinstance(value, dict):
+        for required in schema.get("required", []):
+            if required not in value:
+                return f"{path}.{required} 缺少必填字段"
+        for key, child_schema in schema.get("properties", {}).items():
+            if key in value and isinstance(child_schema, dict):
+                issue = _validate_output_schema(value[key], child_schema, f"{path}.{key}")
+                if issue:
+                    return issue
+    if isinstance(value, list) and isinstance(schema.get("items"), dict):
+        for index, item in enumerate(value):
+            issue = _validate_output_schema(item, schema["items"], f"{path}[{index}]")
+            if issue:
+                return issue
+    return None
+
+
+def _parse_structured_output(content: str, schema: dict[str, Any]) -> Any:
+    """Parse and validate a JSON step result, accepting accidental code fences."""
+    candidate = content.strip()
+    if candidate.startswith("```") and candidate.endswith("```"):
+        candidate = candidate.split("\n", 1)[1] if "\n" in candidate else candidate[3:-3]
+        candidate = candidate.rsplit("```", 1)[0].strip()
+    try:
+        value = json.loads(candidate)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"步骤要求 JSON 输出，但模型返回的内容无法解析: {error.msg}") from error
+    issue = _validate_output_schema(value, schema)
+    if issue:
+        raise ValueError(f"步骤 JSON 输出不符合 output_schema: {issue}")
+    return value
 
 
 def load_flow(path: str | Path) -> FlowDefinition:
@@ -630,7 +793,7 @@ def _execute_flow(
         step_descs = []
         for sid in level:
             s = step_map[sid]
-            skill_info = s.skill
+            skill_info = "approval / 人工确认" if s.type == "approval" else s.skill
             if s.agent:
                 skill_info = f"{skill_info} (agent: {s.agent})"
             deps = f" [{', '.join(s.depends_on)}]" if s.depends_on else ""
@@ -667,9 +830,15 @@ def _execute_flow(
                 "duration": item.duration,
                 "tokens": item.tokens,
                 "skill": step_map[sid].skill,
+                "type": step_map[sid].type,
                 "depends_on": step_map[sid].depends_on,
             }
             for sid, item in result.steps.items()
+        }
+        step_data = {
+            sid: item.data
+            for sid, item in result.steps.items()
+            if item.status == "done" and item.data is not None
         }
         _save_run_state(
             flow.name,
@@ -683,6 +852,8 @@ def _execute_flow(
             attempt=attempt,
             outputs=result.outputs,
             attempt_tokens=attempt_tokens_acc["n"],
+            step_data=step_data,
+            approvals=context.get("_approvals", {}),
         )
 
     persist_progress()
@@ -703,6 +874,7 @@ def _execute_flow(
                 sr.status = "done"
                 sr.duration = context.get("_resume_durations", {}).get(step.id, 0.0)
                 sr.output = context.get("steps", {}).get(step.id)
+                sr.data = context.get("step_data", {}).get(step.id)
                 sr.tokens = context.get("_resume_tokens", {}).get(step.id, 0)
                 console.print(
                     f"\n[bold]>>> {step.id}[/bold] [{step.skill}] "
@@ -728,6 +900,56 @@ def _execute_flow(
                     f"[yellow]SKIPPED (dep not done: {', '.join(blocked_deps)})[/yellow]"
                 )
                 sr.duration = 0
+                return sr
+
+            # 条件节点：只执行安全的小表达式，不执行任意 Python。
+            if step.when:
+                try:
+                    condition_met = _evaluate_condition(step.when, context)
+                except ValueError as error:
+                    sr.status = "failed"
+                    sr.error = str(error)
+                    sr.duration = time.time() - t1
+                    console.print(f"  [red]Condition error in {step.id}: {error}[/red]")
+                    return sr
+                if not condition_met:
+                    sr.status = "skipped"
+                    sr.error = f"Skipped: condition not met — {step.when}"
+                    sr.duration = time.time() - t1
+                    console.print(
+                        f"\n[bold]>>> {step.id}[/bold] [yellow]SKIPPED (condition not met)[/yellow]"
+                    )
+                    return sr
+
+            if step.type == "approval":
+                approval = context.get("_approvals", {}).get(step.id)
+                if not approval:
+                    sr.status = "waiting_approval"
+                    sr.error = "Waiting for human approval"
+                    result.status = "waiting_approval"
+                    sr.duration = time.time() - t1
+                    console.print(
+                        f"\n[bold]>>> {step.id}[/bold] [yellow]WAITING FOR HUMAN APPROVAL[/yellow]"
+                    )
+                    console.print(
+                        f"  [dim]Use: sf flow approve {run_id} --step {step.id} "
+                        "or sf flow reject {run_id} --step {step.id}[/dim]"
+                    )
+                    return sr
+
+                approved = approval.get("decision") == "approved"
+                sr.data = {
+                    "approved": approved,
+                    "note": approval.get("note", ""),
+                }
+                sr.output = json.dumps(sr.data, ensure_ascii=False)
+                sr.status = "done" if approved else "rejected"
+                sr.error = None if approved else "Rejected by human reviewer"
+                sr.duration = time.time() - t1
+                console.print(
+                    f"  [{'green' if approved else 'red'}]Human decision: "
+                    f"{'approved' if approved else 'rejected'}[/{'green' if approved else 'red'}]"
+                )
                 return sr
 
             console.print(f"\n[bold]>>> {step.id}[/bold] [{step.skill}]")
@@ -802,6 +1024,8 @@ def _execute_flow(
                     )
                 sr.output = llm_result.content
                 sr.tokens = llm_result.total_tokens
+                if step.output_format == "json":
+                    sr.data = _parse_structured_output(llm_result.content, step.output_schema)
                 sr.status = "done"
             except Exception as e:
                 sr.status = "failed"
@@ -832,8 +1056,14 @@ def _execute_flow(
                     result.status = "partial"
                 elif sr.status == "skipped":
                     result.status = "partial"
+                elif sr.status == "waiting_approval":
+                    result.status = "waiting_approval"
+                elif sr.status == "rejected":
+                    result.status = "rejected"
                 elif sr.status == "done":
                     context["steps"][sr.step_id] = sr.output if sr.output else ""
+                    if sr.data is not None:
+                        context.setdefault("step_data", {})[sr.step_id] = sr.data
 
                 # P2-004: 本次 attempt 新增 token（跳过步骤的 tokens 是历史值，不计入）
                 if sr.step_id not in resume_skip and sr.status == "done":
@@ -849,6 +1079,8 @@ def _execute_flow(
         for level_idx, level in enumerate(levels):
             console.print(f"\n[bold]--- Level {level_idx + 1}/{len(levels)} ---[/bold]")
             await run_level(level)
+            if result.status in {"waiting_approval", "rejected"}:
+                break
 
     try:
         if stream:
@@ -868,7 +1100,12 @@ def _execute_flow(
     if flow.output:
         for out_key, ref in flow.output.items():
             try:
-                result.outputs[out_key] = _resolve_ref(str(ref), context)
+                if isinstance(ref, str) and re.fullmatch(
+                    r"\$steps\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.data(?:\.[\w-]+)*", ref
+                ):
+                    result.outputs[out_key] = _resolve_value(ref, context)
+                else:
+                    result.outputs[out_key] = _resolve_ref(str(ref), context)
             except Exception:
                 result.outputs[out_key] = str(ref)  # 解析失败时保留原始引用
 
@@ -876,6 +1113,7 @@ def _execute_flow(
     done_count = sum(1 for sr in result.steps.values() if sr.status == "done")
     fail_count = sum(1 for sr in result.steps.values() if sr.status == "failed")
     skip_count = sum(1 for sr in result.steps.values() if sr.status == "skipped")
+    waiting_count = sum(1 for sr in result.steps.values() if sr.status == "waiting_approval")
 
     if result.status == "running":
         result.status = "done" if fail_count == 0 else "partial"
@@ -884,6 +1122,7 @@ def _execute_flow(
     status_text = (
         f"Status: [bold]{result.status}[/bold]\n"
         f"Done: {done_count} | Failed: {fail_count} | Skipped: {skip_count} | "
+        f"Waiting: {waiting_count} | "
         f"Duration: {result.total_duration:.1f}s"
     )
 
@@ -896,7 +1135,7 @@ def _execute_flow(
 
 def _new_flow_context(flow: FlowDefinition, inputs: dict[str, Any]) -> dict[str, Any]:
     """Build a clean context for a new run, including schema defaults."""
-    context: dict[str, Any] = {"input": {}, "steps": {}}
+    context: dict[str, Any] = {"input": {}, "steps": {}, "step_data": {}, "_approvals": {}}
     if flow.input_schema:
         for key, spec in flow.input_schema.items():
             if isinstance(spec, dict) and "default" in spec:
@@ -998,6 +1237,7 @@ def resume_flow(
 
     # 完整输出（BUG-FLOW-003: 优先 .steps/ 完整产物，回退 JSON 摘要）
     full_outputs = _load_step_outputs(run_id)
+    full_step_data = _load_step_data(run_id)
     # 旧步骤耗时（供跳过步骤带回）
     old_durations = {
         sid: float(sdata.get("duration", 0.0) or 0.0) for sid, sdata in saved_steps.items()
@@ -1008,6 +1248,8 @@ def resume_flow(
     context = {
         "input": saved_inputs,
         "steps": full_outputs,
+        "step_data": full_step_data,
+        "_approvals": saved.get("approvals", {}),
         "_resume_durations": old_durations,
         "_resume_tokens": old_tokens,
     }
@@ -1023,6 +1265,39 @@ def resume_flow(
         run_id=run_id,
         attempt=prev_attempt + 1,
     )
+
+
+def decide_approval(
+    run_id: str, step_id: str, *, approved: bool, note: str = ""
+) -> FlowResult | None:
+    """Record a human decision and resume the paused Flow."""
+    run_file = RUNS_DIR / f"{run_id}.json"
+    if not run_file.exists():
+        console.print(f"[red]运行记录不存在: {run_id}[/red]")
+        return None
+
+    try:
+        saved = json.loads(run_file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        console.print(f"[red]运行记录损坏: {run_id}[/red]")
+        return None
+
+    step_state = saved.get("steps", {}).get(step_id)
+    if not isinstance(step_state, dict) or step_state.get("status") != "waiting_approval":
+        console.print(f"[red]步骤不是待审批状态: {step_id}[/red]")
+        return None
+
+    saved.setdefault("approvals", {})[step_id] = {
+        "decision": "approved" if approved else "rejected",
+        "note": note,
+        "decided_at": datetime_now_iso(),
+    }
+    # 将审批节点重新置为 pending，交给统一恢复流程执行并传播结果。
+    step_state["status"] = "pending"
+    step_state["error"] = None
+    saved["status"] = "pending"
+    run_file.write_text(json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
+    return resume_flow(run_id)
 
 
 def _list_runnable_ids() -> None:

@@ -4,7 +4,7 @@ Flow = DAG of Steps，每个 Step = Skill/Agent + 输入映射 + 依赖关系。
 """
 
 import re
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -31,13 +31,22 @@ class FlowStep(BaseModel):
     """
 
     id: str = Field(..., description="步骤 ID（在 Flow 内唯一）")
-    skill: str = Field(..., description="使用的 Skill 名称")
+    type: Literal["llm", "approval"] = Field(default="llm", description="节点类型")
+    skill: str = Field(default="", description="使用的 Skill 名称（LLM 节点必填）")
     agent: str | None = Field(
         default=None, description="使用的 Agent 名称（可选，优先级高于 skill）"
     )
     description: str = Field(default="", description="步骤描述")
     input: StepInput = Field(default_factory=StepInput, description="输入变量映射")
     depends_on: list[str] = Field(default_factory=list, description="依赖的前序步骤 ID 列表")
+    when: str | None = Field(
+        default=None,
+        description="条件表达式（支持 == / !=，例如 $steps.review.data.approved == true）",
+    )
+    output_format: Literal["text", "json"] = Field(default="text", description="步骤输出格式")
+    output_schema: dict[str, Any] = Field(
+        default_factory=dict, description="JSON 输出契约（简化 JSON Schema）"
+    )
     # BUG-FLOW-008 部分: 步骤级策略（0 = 使用引擎默认值）
     timeout: float = Field(default=0.0, ge=0.0, description="单次 LLM 调用超时秒数（0=默认 120s）")
     retries: int = Field(default=0, ge=0, description="可重试错误的最大重试次数（0=默认 2 次）")
@@ -49,7 +58,19 @@ class FlowStep(BaseModel):
         if isinstance(data, dict) and "skill" not in data and "playbook" in data:
             data = dict(data)
             data["skill"] = data["playbook"]
+        if isinstance(data, dict) and "when" not in data and "condition" in data:
+            data = dict(data)
+            data["when"] = data["condition"]
         return data
+
+    @model_validator(mode="after")
+    def validate_node(self):
+        """Require a Playbook only for LLM nodes."""
+        if self.type == "llm" and not self.skill:
+            raise ValueError("LLM Flow 节点必须配置 skill/playbook")
+        if self.type == "approval" and self.agent:
+            raise ValueError("approval 节点不支持 agent")
+        return self
 
     @field_validator("id")
     @classmethod
@@ -99,15 +120,17 @@ class FlowDefinition(BaseModel):
     description: str = Field(default="", description="描述")
     input_schema: dict[str, Any] = Field(default_factory=dict, description="输入参数 schema")
     steps: list[FlowStep] = Field(..., description="步骤列表", min_length=1)
-    output: dict[str, str] = Field(default_factory=dict, description="输出映射")
+    output: dict[str, Any] = Field(default_factory=dict, description="输出映射")
 
 
 class StepResult(BaseModel):
     """单个步骤的执行结果。"""
 
     step_id: str
-    status: str = "pending"  # pending | running | done | failed
+    status: str = "pending"  # pending | running | done | failed | skipped
+    # waiting_approval / rejected are terminal control-flow states.
     output: str | None = None
+    data: Any | None = None
     error: str | None = None
     duration: float = 0.0
     tokens: int = 0

@@ -1,9 +1,11 @@
 """Project-local environment loading tests."""
 
 import os
+from unittest.mock import Mock
 
 from typer.testing import CliRunner
 
+from soloflow.cli import encoding
 from soloflow.cli.main import app
 from soloflow.config import load_project_env
 
@@ -45,3 +47,16 @@ def test_cli_callback_loads_project_env(monkeypatch, tmp_path):
 
     assert result.exit_code == 0
     assert os.environ["SOLOFLOW_TEST_API_KEY"] == "from-cli"
+
+
+def test_configure_output_encoding_uses_utf8_on_windows(monkeypatch):
+    stdout = Mock()
+    stderr = Mock()
+    monkeypatch.setattr(encoding.os, "name", "nt")
+    monkeypatch.setattr(encoding.sys, "stdout", stdout)
+    monkeypatch.setattr(encoding.sys, "stderr", stderr)
+
+    encoding.configure_output_encoding()
+
+    stdout.reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
+    stderr.reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")

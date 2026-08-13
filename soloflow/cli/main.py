@@ -6,6 +6,7 @@ from rich.panel import Panel
 
 from soloflow import __version__
 from soloflow.cli import agent, flow, skill
+from soloflow.cli.encoding import configure_output_encoding
 from soloflow.config import load_project_env
 
 app = typer.Typer(
@@ -14,6 +15,8 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+# Windows 传统终端可能仍使用 GBK；统一让 CLI 的中文输出走 UTF-8。
+configure_output_encoding()
 console = Console()
 
 # 对外推荐 Playbook；Skill 作为隐藏的旧命令保留，避免破坏已有脚本。
@@ -29,6 +32,7 @@ def run_skill_shortcut(
     task: str = typer.Argument(None, help="任务描述"),
     input_file: str = typer.Option(None, "--file", "-f", help="从文件读取任务"),
     count: int = typer.Option(1, "--count", "-n", help="生成几个版本"),
+    model: str | None = typer.Option(None, "--model", help="临时覆盖工作手册的 DeepSeek 模型"),
     dry_run: bool = typer.Option(False, "--dry-run", help="仅预览，不调用模型"),
     stream: bool = typer.Option(False, "--stream", "-s", help="流式输出"),
 ):
@@ -38,6 +42,7 @@ def run_skill_shortcut(
         prompt=task,
         input_file=input_file,
         count=count,
+        model=model,
         dry_run=dry_run,
         stream=stream,
     )

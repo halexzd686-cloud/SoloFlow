@@ -106,11 +106,28 @@ def test_chat_missing_api_key_has_actionable_message():
         {"model": "unsupported-model"},
     ],
 )
-def test_chat_rejects_non_whitelisted_target_before_reading_key(overrides):
+def test_chat_rejects_non_deepseek_target_before_reading_key(overrides):
     with patch("soloflow.llm.client._get_api_key") as get_key:
-        with pytest.raises(RuntimeError, match="仅支持 deepseek/deepseek-v4-flash"):
+        with pytest.raises(RuntimeError, match="仅支持 DeepSeek 官方接口"):
             chat(_MESSAGES, **overrides)
         get_key.assert_not_called()
+
+
+@pytest.mark.parametrize("model", ["deepseek-chat", "deepseek-reasoner", "deepseek-v3.2"])
+def test_chat_accepts_supported_deepseek_model_names(model):
+    captured_payload: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content))
+        return _response(request)
+
+    with (
+        patch("soloflow.llm.client._get_api_key", return_value="sk-test"),
+        _client_patch(handler),
+    ):
+        chat(_MESSAGES, model=model)
+
+    assert captured_payload["model"] == model
 
 
 def test_chat_dry_run_reads_no_key_and_makes_no_request():
