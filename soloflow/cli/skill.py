@@ -1,4 +1,4 @@
-"""Skill 子命令 —— sf skill *"""
+"""工作手册命令实现 —— sf playbook *（兼容 sf skill *）"""
 
 from pathlib import Path
 
@@ -12,6 +12,7 @@ from soloflow.core.skill_loader import (
     find_skill,
     list_available_skills,
     load_skill,
+    save_playbook,
     save_skill,
     validate_skill,
 )
@@ -22,7 +23,7 @@ from soloflow.models.skill import (
     SkillMeta,
 )
 
-app = typer.Typer(help="Skill 技能文件管理", no_args_is_help=True)
+app = typer.Typer(help="工作手册管理（兼容旧版 Skill）", no_args_is_help=True)
 console = Console()
 
 SKILL_TEMPLATES = {
@@ -93,14 +94,17 @@ SKILL_TEMPLATES = {
 
 @app.command()
 def init(
-    name: str = typer.Argument(..., help="Skill 名称 (kebab-case)"),
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="工作手册名称 (kebab-case)"),
     template: str = typer.Option(
         "writer", "--from", "-f", help="模板: writer / reviewer / researcher"
     ),
-    output: str = typer.Option("./skills", "--output", "-o", help="输出目录"),
+    output: str | None = typer.Option(None, "--output", "-o", help="输出目录"),
     dry_run: bool = typer.Option(False, "--dry-run", help="仅预览，不写入文件"),
 ):
-    """交互式创建一个新的 Skill 文件。"""
+    """创建一个新的工作手册文件。"""
+    is_playbook = "playbook" in ctx.command_path.split()
+    output = output or ("./playbooks" if is_playbook else "./skills")
     if template not in SKILL_TEMPLATES:
         console.print(f"[red]未知模板: {template}[/red]")
         console.print(f"可用模板: {', '.join(SKILL_TEMPLATES.keys())}")
@@ -110,11 +114,11 @@ def init(
 
     console.print()
     console.print(
-        Panel.fit("[bold cyan]SoloFlow - Skill 创建向导[/bold cyan]", border_style="cyan")
+        Panel.fit("[bold cyan]SoloFlow - 工作手册创建向导[/bold cyan]", border_style="cyan")
     )
 
     # 收集基本信息
-    console.print(f"\n[bold]Skill 名称:[/bold] {name}")
+    console.print(f"\n[bold]工作手册名称:[/bold] {name}")
     desc = typer.prompt("简短描述", default=tpl["description"])
     author = typer.prompt("作者", default="unknown")
     tags_input = typer.prompt("标签 (逗号分隔)", default=",".join(tpl["tags"]))
@@ -137,7 +141,7 @@ def init(
     console.print("输入 Body 内容。输入 'EOF' 结束。")
     body = _collect_multiline()
 
-    # 构建 Skill
+    # 构建内部 SkillFile；对外文件名使用 Playbook。
     skill = SkillFile(
         meta=SkillMeta(
             name=name,
@@ -167,19 +171,19 @@ def init(
 
     # 保存
     out_path = Path(output) / name
-    saved_path = save_skill(skill, out_path)
+    saved_path = save_playbook(skill, out_path) if is_playbook else save_skill(skill, out_path)
 
-    console.print(f"\n[green][OK] Created Skill: {saved_path}[/green]")
+    console.print(f"\n[green][OK] 已创建工作手册: {saved_path}[/green]")
     console.print("[green][OK] 验证通过[/green]")
     console.print(f"[dim]Next: sf run {name} <task>[/dim]")
 
 
 @app.command()
 def validate(
-    path: str = typer.Argument(..., help="Skill 文件路径或目录"),
+    path: str = typer.Argument(..., help="工作手册文件路径或目录"),
     strict: bool = typer.Option(False, "--strict", "-s", help="严格模式"),
 ):
-    """校验 Skill 文件格式。"""
+    """校验工作手册文件格式。"""
     skill_path = Path(path)
     try:
         skill = load_skill(skill_path)
@@ -192,7 +196,7 @@ def validate(
 
     issues = validate_skill(skill, strict=strict)
 
-    console.print(f"\n[bold]Skill: {skill.meta.name} v{skill.meta.version}[/bold]")
+    console.print(f"\n[bold]工作手册: {skill.meta.name} v{skill.meta.version}[/bold]")
 
     if not issues:
         console.print("[green][OK] 格式校验通过[/green]")
@@ -211,11 +215,11 @@ def validate(
 
 @app.command("list")
 def list_cmd(
-    local: bool = typer.Option(False, "--local", "-l", help="仅列出项目 Skill"),
-    global_: bool = typer.Option(False, "--global", "-g", help="仅列出全局 Skill"),
+    local: bool = typer.Option(False, "--local", "-l", help="仅列出项目工作手册"),
+    global_: bool = typer.Option(False, "--global", "-g", help="仅列出全局工作手册"),
 ):
-    """列出所有可用的 Skill。"""
-    table = Table(title="Skills", show_header=True, header_style="bold cyan")
+    """列出所有可用的工作手册。"""
+    table = Table(title="Playbooks / 工作手册", show_header=True, header_style="bold cyan")
     table.add_column("名称", style="cyan")
     table.add_column("版本")
     table.add_column("描述")
@@ -237,7 +241,7 @@ def list_cmd(
         )
 
     if len(table.rows) == 0:
-        console.print("[dim]没有找到 Skill。使用 sf skill init 创建一个。[/dim]")
+        console.print("[dim]没有找到工作手册。使用 sf playbook init 创建一个。[/dim]")
         return
 
     console.print(table)
@@ -245,16 +249,16 @@ def list_cmd(
 
 @app.command()
 def show(
-    name: str = typer.Argument(..., help="Skill 名称或路径"),
+    name: str = typer.Argument(..., help="工作手册名称或路径"),
     json: bool = typer.Option(False, "--json", help="JSON 格式输出"),
     rendered: bool = typer.Option(False, "--rendered", "-r", help="显示渲染后的完整 prompt"),
 ):
-    """查看 Skill 详情。"""
+    """查看工作手册详情。"""
     try:
         skill_path = find_skill(name)
         skill = load_skill(skill_path)
     except FileNotFoundError:
-        console.print(f"[red]Skill not found: {name}[/red]")
+        console.print(f"[red]工作手册不存在: {name}[/red]")
         raise typer.Exit(1)
 
     if json:
@@ -294,28 +298,28 @@ def show(
 
 @app.command()
 def run(
-    skill_name: str = typer.Argument(..., help="Skill 名称或路径"),
+    skill_name: str = typer.Argument(..., help="工作手册名称或路径"),
     prompt: str = typer.Argument(None, help="输入任务描述"),
     input_file: str = typer.Option(None, "--file", "-f", help="从文件读取输入"),
     count: int = typer.Option(1, "--count", "-n", help="生成几个版本 (抽卡模式)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="仅显示 prompt，不调用 LLM"),
     stream: bool = typer.Option(False, "--stream", "-s", help="流式输出（逐 token 实时打印）"),
 ):
-    """用 Skill 执行任务。
+    """用工作手册执行任务。
 
     --stream 模式实时逐 token 输出，适合长任务。
     流式模式下 --count 固定为 1。
 
     Examples:
-        sf skill run writer "写一篇AI文章"
-        sf skill run writer "写一篇文章" --stream
-        sf skill run reviewer --file diff.txt -n 3
+        sf playbook run writer "写一篇AI文章"
+        sf playbook run writer "写一篇文章" --stream
+        sf playbook run reviewer --file diff.txt -n 3
     """
     try:
         spath = find_skill(skill_name)
         skill = load_skill(spath)
     except FileNotFoundError:
-        console.print(f"[red]Skill not found: {skill_name}[/red]")
+        console.print(f"[red]工作手册不存在: {skill_name}[/red]")
         raise typer.Exit(1)
 
     # 获取输入
@@ -326,7 +330,7 @@ def run(
     else:
         user_input = typer.prompt("输入任务描述")
 
-    console.print(f"\n[dim]使用 Skill: {skill.meta.name} v{skill.meta.version}[/dim]")
+    console.print(f"\n[dim]使用工作手册: {skill.meta.name} v{skill.meta.version}[/dim]")
     console.print(f"[dim]模型: {skill.config.model} | 温度: {skill.config.temperature}[/dim]")
 
     if stream:

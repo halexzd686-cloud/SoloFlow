@@ -134,3 +134,19 @@ def test_bundled_skills_use_verified_deepseek_defaults():
         assert skill.config.base_url == "https://api.deepseek.com"
         assert skill.config.api_key_env == "DEEPSEEK_API_KEY"
         assert skill.config.model == "deepseek-v4-flash"
+
+
+def test_playbook_directory_precedes_legacy_skill_directory(monkeypatch, tmp_path):
+    """项目内的新 Playbook 覆盖同名的旧 Skill。"""
+    project_root = tmp_path / "project"
+    playbook_path = _write_skill(project_root / "playbooks", "shared")
+    playbook_path.rename(playbook_path.with_name("PLAYBOOK.md"))
+    legacy_path = _write_skill(project_root / "skills", "shared")
+
+    assert assets.find_asset("playbook", "shared", project_root) == playbook_path.with_name(
+        "PLAYBOOK.md"
+    )
+    assert assets.find_asset("skill", "shared", project_root) == playbook_path.with_name(
+        "PLAYBOOK.md"
+    )
+    assert legacy_path.exists()

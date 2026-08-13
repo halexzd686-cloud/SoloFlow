@@ -6,7 +6,7 @@ Flow = DAG of Steps，每个 Step = Skill/Agent + 输入映射 + 依赖关系。
 import re
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class StepInput(BaseModel):
@@ -41,6 +41,15 @@ class FlowStep(BaseModel):
     # BUG-FLOW-008 部分: 步骤级策略（0 = 使用引擎默认值）
     timeout: float = Field(default=0.0, ge=0.0, description="单次 LLM 调用超时秒数（0=默认 120s）")
     retries: int = Field(default=0, ge=0, description="可重试错误的最大重试次数（0=默认 2 次）")
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_playbook_alias(cls, data):
+        """Accept the user-facing ``playbook`` key while keeping ``skill`` internally."""
+        if isinstance(data, dict) and "skill" not in data and "playbook" in data:
+            data = dict(data)
+            data["skill"] = data["playbook"]
+        return data
 
     @field_validator("id")
     @classmethod

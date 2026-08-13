@@ -1,6 +1,6 @@
-"""Skill 文件加载器。
+"""工作手册文件加载器。
 
-支持从 SKILL.md 文件（YAML frontmatter + Markdown body）加载和保存。
+支持从 PLAYBOOK.md 或 SKILL.md 文件（YAML frontmatter + Markdown body）加载和保存。
 兼容 agentskills.io 社区标准格式，同时扩展了 SoloFlow 的 CoSTAR 字段。
 """
 
@@ -14,6 +14,25 @@ from soloflow.models.skill import (
     SkillFile,
     SkillMeta,
 )
+
+PLAYBOOK_FILENAME = "PLAYBOOK.md"
+SKILL_FILENAME = "SKILL.md"
+
+
+def _definition_files(directory: Path) -> list[Path]:
+    """Return supported work-manual files, preferring PLAYBOOK.md."""
+    if not directory.is_dir():
+        return []
+    return sorted(directory.rglob(PLAYBOOK_FILENAME)) + sorted(directory.rglob(SKILL_FILENAME))
+
+
+def _definition_file(directory: Path) -> Path | None:
+    """Find the preferred definition file in a work-manual directory."""
+    for filename in (PLAYBOOK_FILENAME, SKILL_FILENAME):
+        candidate = directory / filename
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def _parse_frontmatter(text: str) -> tuple[dict, str]:
@@ -122,7 +141,7 @@ def _build_frontmatter(skill: SkillFile) -> str:
 
 
 def load_skill(path: str | Path) -> SkillFile:
-    """从文件路径加载一个 Skill。
+    """从文件路径加载一个工作手册。
 
     Args:
         path: SKILL.md 文件或包含 SKILL.md 的目录路径。
@@ -136,15 +155,15 @@ def load_skill(path: str | Path) -> SkillFile:
     """
     path = Path(path)
 
-    # 如果是目录，找目录下的 SKILL.md
+    # 如果是目录，优先找 PLAYBOOK.md，再兼容 SKILL.md
     if path.is_dir():
-        skill_md = path / "SKILL.md"
-        if not skill_md.exists():
-            raise FileNotFoundError(f"目录中未找到 SKILL.md: {path}")
-        path = skill_md
+        definition = _definition_file(path)
+        if definition is None:
+            raise FileNotFoundError(f"目录中未找到 PLAYBOOK.md 或 SKILL.md: {path}")
+        path = definition
 
     if not path.exists():
-        raise FileNotFoundError(f"Skill 文件不存在: {path}")
+        raise FileNotFoundError(f"工作手册文件不存在: {path}")
 
     if path.suffix not in (".md", ".yml", ".yaml"):
         raise ValueError(f"不支持的文件格式: {path.suffix}，请使用 .md 或 .yml")
@@ -194,8 +213,13 @@ def load_skill(path: str | Path) -> SkillFile:
     return skill
 
 
-def save_skill(skill: SkillFile, path: str | Path) -> Path:
-    """将 SkillFile 保存为 SKILL.md 文件。
+def save_skill(
+    skill: SkillFile,
+    path: str | Path,
+    *,
+    filename: str = SKILL_FILENAME,
+) -> Path:
+    """将 SkillFile 保存为指定文件名，默认使用兼容的 SKILL.md。
 
     Args:
         skill: SkillFile 对象。
@@ -208,7 +232,7 @@ def save_skill(skill: SkillFile, path: str | Path) -> Path:
 
     if path.suffix == "" or path.is_dir():
         path.mkdir(parents=True, exist_ok=True)
-        path = path / "SKILL.md"
+        path = path / filename
 
     frontmatter = _build_frontmatter(skill)
     content = f"---\n{frontmatter}---\n\n{skill.body}"
@@ -232,10 +256,14 @@ def list_skills(skills_dir: str | Path) -> list[dict]:
         return []
 
     results = []
-    # 递归搜索 skills_dir 下所有包含 SKILL.md 的目录
-    for skill_md in sorted(skills_dir.rglob("SKILL.md")):
+    seen_names: set[str] = set()
+    # 递归搜索两种格式；同一目录同时存在时优先使用 PLAYBOOK.md。
+    for skill_md in _definition_files(skills_dir):
         try:
             skill = load_skill(skill_md)
+            if skill.meta.name in seen_names:
+                continue
+            seen_names.add(skill.meta.name)
             results.append(
                 {
                     "name": skill.meta.name,
@@ -250,6 +278,37 @@ def list_skills(skills_dir: str | Path) -> list[dict]:
             continue
 
     return results
+
+
+def save_playbook(skill: SkillFile, path: str | Path) -> Path:
+    """Save a new-style work manual as PLAYBOOK.md."""
+    return save_skill(skill, path, filename=PLAYBOOK_FILENAME)
+
+
+def load_playbook(path: str | Path) -> SkillFile:
+    """Compatibility-friendly alias for loading a Playbook."""
+    return load_skill(path)
+
+
+def find_playbook(name_or_path: str, project_dir: str | Path | None = None) -> Path:
+    """Compatibility-friendly alias for finding a Playbook."""
+    return find_skill(name_or_path, project_dir)
+
+
+def list_available_playbooks(
+    project_dir: str | Path | None = None,
+    *,
+    include_project: bool = True,
+    include_global: bool = True,
+    include_bundled: bool = True,
+) -> list[dict]:
+    """Compatibility-friendly alias for listing Playbooks."""
+    return list_available_skills(
+        project_dir,
+        include_project=include_project,
+        include_global=include_global,
+        include_bundled=include_bundled,
+    )
 
 
 def list_available_skills(

@@ -7,6 +7,7 @@ from soloflow.core.skill_loader import (
     _parse_frontmatter,
     list_skills,
     load_skill,
+    save_playbook,
     save_skill,
     validate_skill,
 )
@@ -179,3 +180,24 @@ def test_list_skills():
         assert len(results) == 2
         names = {r["name"] for r in results}
         assert names == {"skill-a", "skill-b"}
+
+
+def test_playbook_filename_is_supported_and_preferred():
+    """新格式 PLAYBOOK.md 可读写，并优先于同目录的旧 SKILL.md。"""
+    with tempfile.TemporaryDirectory() as tmp:
+        directory = Path(tmp) / "writer"
+        playbook = SkillFile(
+            meta=SkillMeta(name="playbook-writer", description="新格式"),
+            body="来自 PLAYBOOK",
+        )
+        saved = save_playbook(playbook, directory)
+        assert saved.name == "PLAYBOOK.md"
+
+        # 如果旧文件同时存在，目录加载仍优先使用新格式。
+        (directory / "SKILL.md").write_text(
+            "---\nname: legacy-writer\ndescription: 旧格式\n---\n\n来自 SKILL",
+            encoding="utf-8",
+        )
+        loaded = load_skill(directory)
+        assert loaded.meta.name == "playbook-writer"
+        assert loaded.body == "来自 PLAYBOOK"

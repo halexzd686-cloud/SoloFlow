@@ -4,7 +4,7 @@ Agent = Skill + 角色设定 + LLM 绑定。
 Agent 是薄层——它只是给 Skill 穿上一件"角色外套"。
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AgentConfigOverride(BaseModel):
@@ -52,6 +52,15 @@ class AgentDefinition(BaseModel):
     rules: list[str] = Field(
         default_factory=list, description="Agent 级别的规则（叠加在 Skill 规则之上）"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_playbooks_alias(cls, data):
+        """Accept the user-facing ``playbooks`` key while keeping ``skills`` internally."""
+        if isinstance(data, dict) and "skills" not in data and "playbooks" in data:
+            data = dict(data)
+            data["skills"] = data["playbooks"]
+        return data
 
     @property
     def system_prompt(self) -> str:

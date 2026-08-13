@@ -13,8 +13,9 @@ def test_top_level_help_is_small_and_has_no_removed_commands():
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
-    for command in ("run", "version", "mcp", "mcp-config", "skill", "flow", "agent"):
+    for command in ("run", "version", "mcp", "mcp-config", "playbook", "flow", "agent"):
         assert command in result.output
+    assert "skill" not in result.output
     for removed in ("dashboard", "registry", "mcp-config-set"):
         assert removed not in result.output
 
@@ -50,6 +51,16 @@ def test_removed_nested_commands_are_absent():
     assert "iter" not in skill_help.output
     assert "heartbeat" not in agent_help.output
     assert "watch" in flow_help.output
+
+
+def test_playbook_is_public_and_skill_is_compatibility_alias():
+    playbook_help = runner.invoke(app, ["playbook", "--help"])
+    skill_help = runner.invoke(app, ["skill", "--help"])
+
+    assert playbook_help.exit_code == 0
+    assert "工作手册" in playbook_help.output
+    assert skill_help.exit_code == 0
+    assert "兼容" in skill_help.output
 
 
 def test_mcp_config_options_are_merged():

@@ -359,6 +359,25 @@ def test_load_flow_file_not_found():
         load_flow("nonexistent_flow_file.flow.yml")
 
 
+def test_load_flow_accepts_playbook_key(tmp_path):
+    """Flow 新格式使用 playbook 字段时，内部仍归一化为 skill。"""
+    from soloflow.core.flow_engine import load_flow
+
+    flow_path = tmp_path / "playbook-flow.flow.yml"
+    flow_path.write_text(
+        """
+name: playbook-flow
+steps:
+  - id: write
+    playbook: content-writer
+""",
+        encoding="utf-8",
+    )
+
+    flow = load_flow(flow_path)
+    assert flow.steps[0].skill == "content-writer"
+
+
 # ── Dry run 测试 ──
 
 

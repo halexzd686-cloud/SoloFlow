@@ -10,28 +10,29 @@ from soloflow.config import load_project_env
 
 app = typer.Typer(
     name="soloflow",
-    help="文件驱动的 AI Skill 管理系统",
+    help="文件驱动的 AI 工作手册管理系统",
     no_args_is_help=True,
 )
 
 console = Console()
 
-# 注册子命令
-app.add_typer(skill.app, name="skill", help="Skill 技能文件管理")
+# 对外推荐 Playbook；Skill 作为隐藏的旧命令保留，避免破坏已有脚本。
+app.add_typer(skill.app, name="playbook", help="工作手册管理")
+app.add_typer(skill.app, name="skill", help="旧版 Skill 命令（兼容）", hidden=True)
 app.add_typer(agent.app, name="agent", help="Agent 智能体管理")
 app.add_typer(flow.app, name="flow", help="Flow 工作流编排")
 
 
 @app.command("run")
 def run_skill_shortcut(
-    skill_name: str = typer.Argument(..., help="Skill 名称或路径"),
+    skill_name: str = typer.Argument(..., help="工作手册名称或路径"),
     task: str = typer.Argument(None, help="任务描述"),
     input_file: str = typer.Option(None, "--file", "-f", help="从文件读取任务"),
     count: int = typer.Option(1, "--count", "-n", help="生成几个版本"),
     dry_run: bool = typer.Option(False, "--dry-run", help="仅预览，不调用模型"),
     stream: bool = typer.Option(False, "--stream", "-s", help="流式输出"),
 ):
-    """运行一个 Skill（推荐入口）。"""
+    """运行一个工作手册（推荐入口）。"""
     skill.run(
         skill_name=skill_name,
         prompt=task,
@@ -46,7 +47,7 @@ def run_skill_shortcut(
 def mcp():
     """启动 MCP Server 模式（JSON-RPC over stdio）。
 
-    让 Claude Code、Cursor、VS Code 等 AI 工具直接调用 SoloFlow 的 Skill/Flow/Agent。
+    让 Claude Code、Cursor、VS Code 等 AI 工具直接调用 SoloFlow 的工作手册、Flow 和 Agent。
 
     配置方式 —— 在 .claude/settings.json 或 claude_desktop_config.json 中添加：
 
@@ -136,7 +137,7 @@ def mcp_config(
 def version():
     """显示版本信息。"""
     console.print(f"[bold cyan]SoloFlow[/bold cyan] v{__version__}")
-    console.print("[dim]文件驱动的 AI Skill 管理系统[/dim]")
+    console.print("[dim]文件驱动的 AI 工作手册管理系统[/dim]")
 
 
 @app.callback()
@@ -145,10 +146,10 @@ def callback(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="详细输出"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="静默模式"),
 ):
-    """SoloFlow —— 封装、复用、迭代你的 AI 技能。
+    """SoloFlow —— 把 AI 工作方法保存成可复用的工作手册。
 
-    将专家经验封装为可复用的 SKILL.md 文件，
-    让 AI 按标准干活。
+    将专家经验封装为可复用的 PLAYBOOK.md 文件，
+    让 AI 按标准完成任务。
     """
     load_project_env()
     ctx.ensure_object(dict)

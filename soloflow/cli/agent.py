@@ -19,7 +19,9 @@ console = Console()
 @app.command()
 def create(
     name: str = typer.Argument(..., help="Agent 名称 (kebab-case)"),
-    skills: str = typer.Option("", "--skills", "-s", help="绑定的 Skill 名称（逗号分隔）"),
+    skills: str = typer.Option(
+        "", "--playbooks", "--skills", "-s", help="绑定的工作手册名称（逗号分隔）"
+    ),
     personality: str = typer.Option("", "--personality", "-p", help="性格描述"),
     description: str = typer.Option("", "--desc", "-d", help="Agent 职责描述"),
     output: str = typer.Option("./agents", "--output", "-o", help="输出目录"),
@@ -34,12 +36,12 @@ def create(
     if not personality:
         personality = typer.prompt("性格描述", default="专业、高效、可靠")
     if not skill_list:
-        console.print("[dim]可用 Skill:[/dim]")
-        from soloflow.core.skill_loader import list_skills as ls
+        console.print("[dim]可用工作手册:[/dim]")
+        from soloflow.core.skill_loader import list_available_skills as ls
 
-        for s in ls("skills"):
+        for s in ls(include_global=False):
             console.print(f"  - {s['name']}: {s['description'][:60]}")
-        skill_input = typer.prompt("绑定 Skill（逗号分隔）", default="content-writer")
+        skill_input = typer.prompt("绑定工作手册（逗号分隔）", default="content-writer")
         skill_list = [s.strip() for s in skill_input.split(",") if s.strip()]
 
     values_input = typer.prompt("核心价值观（逗号分隔）", default="诚实,效率,质量")
@@ -58,10 +60,13 @@ def create(
 
     if dry_run:
         console.print("\n[bold yellow]--- Preview ---[/bold yellow]")
-        console.print(yaml.dump(agent.model_dump(exclude_defaults=True), allow_unicode=True))
+        preview = agent.model_dump(exclude_defaults=True)
+        if "skills" in preview:
+            preview["playbooks"] = preview.pop("skills")
+        console.print(yaml.dump(preview, allow_unicode=True))
         return
 
-    path = save_agent(agent, output)
+    path = save_agent(agent, output, use_playbooks=True)
     console.print(f"\n[green][OK] Created Agent: {path}[/green]")
     console.print("[green][OK] 验证通过[/green]")
     console.print(f"[dim]Next: sf agent run {name} <task>[/dim]")
@@ -78,7 +83,7 @@ def list_cmd():
     table = Table(title="Agents", header_style="bold cyan")
     table.add_column("Name", style="cyan")
     table.add_column("Description")
-    table.add_column("Skills")
+    table.add_column("Playbooks")
     table.add_column("Source")
 
     for a in agents:
@@ -113,15 +118,15 @@ def show(
     console.print(f"\n[bold]Soul:[/bold] {agent.soul.personality}")
     if agent.soul.values:
         console.print(f"[bold]Values:[/bold] {', '.join(agent.soul.values)}")
-    console.print(f"[bold]Skills:[/bold] {', '.join(agent.skills) if agent.skills else 'none'}")
+    console.print(f"[bold]Playbooks:[/bold] {', '.join(agent.skills) if agent.skills else 'none'}")
     if agent.rules:
         console.print("[bold]Rules:[/bold]")
         for r in agent.rules:
             console.print(f"  - {r}")
 
-    # 显示加载的 Skill 详情
+    # 显示加载的工作手册详情
     if agent.skills:
-        console.print("\n[bold]Loaded Skills:[/bold]")
+        console.print("\n[bold]Loaded Playbooks:[/bold]")
         for skill_name in agent.skills:
             try:
                 sp = find_skill(skill_name)

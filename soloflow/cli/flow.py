@@ -51,7 +51,7 @@ def init(
         if not sid.strip():
             break
 
-        skill = typer.prompt("  Skill name", default="content-writer")
+        skill = typer.prompt("  Playbook name", default="content-writer")
         desc = typer.prompt("  Description", default="")
         deps = typer.prompt("  Depends on (comma-separated IDs)", default="")
 
@@ -87,7 +87,7 @@ def init(
 
     if dry_run:
         console.print("\n[bold yellow]--- Preview ---[/bold yellow]")
-        console.print(yaml.dump(flow.model_dump(), allow_unicode=True, default_flow_style=False))
+        console.print(yaml.dump(_flow_for_yaml(flow), allow_unicode=True, default_flow_style=False))
         return
 
     # 保存
@@ -95,7 +95,7 @@ def init(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         yaml.dump(
-            flow.model_dump(exclude_defaults=True),
+            _flow_for_yaml(flow, exclude_defaults=True),
             allow_unicode=True,
             default_flow_style=False,
             sort_keys=False,
@@ -106,6 +106,15 @@ def init(
     console.print(f"\n[green][OK] Created Flow: {out_path}[/green]")
     console.print("[green][OK] 验证通过[/green]")
     console.print(f"[dim]Next: sf flow run {name}[/dim]")
+
+
+def _flow_for_yaml(flow: FlowDefinition, *, exclude_defaults: bool = False) -> dict:
+    """Serialize newly created Flows with the user-facing ``playbook`` key."""
+    data = flow.model_dump(exclude_defaults=exclude_defaults)
+    for step in data.get("steps", []):
+        if "skill" in step:
+            step["playbook"] = step.pop("skill")
+    return data
 
 
 @app.command()
@@ -198,7 +207,7 @@ def show(
     # 步骤列表
     table = Table(title="Steps", header_style="bold")
     table.add_column("ID", style="cyan")
-    table.add_column("Skill")
+    table.add_column("Playbook")
     table.add_column("Depends On")
     table.add_column("Description")
 

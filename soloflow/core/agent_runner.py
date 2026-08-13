@@ -21,12 +21,19 @@ def load_agent(name: str | Path) -> AgentDefinition:
     return AgentDefinition(**data)
 
 
-def save_agent(agent: AgentDefinition, output: str | Path = "agents") -> Path:
+def save_agent(
+    agent: AgentDefinition,
+    output: str | Path = "agents",
+    *,
+    use_playbooks: bool = False,
+) -> Path:
     """Save an Agent definition in the requested project directory."""
     output_dir = Path(output)
     output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / f"{agent.name}.agent.yml"
     data = agent.model_dump(exclude_defaults=True, exclude_none=True)
+    if use_playbooks and "skills" in data:
+        data["playbooks"] = data.pop("skills")
     path.write_text(
         yaml.dump(data, allow_unicode=True, default_flow_style=False),
         encoding="utf-8",
@@ -45,7 +52,7 @@ def list_agents() -> list[dict]:
                     "name": data.get("name", asset_name("agent", path)),
                     "path": str(path),
                     "description": data.get("description", ""),
-                    "skills": data.get("skills", []),
+                    "skills": data.get("skills", data.get("playbooks", [])),
                     "source": source,
                 }
             )

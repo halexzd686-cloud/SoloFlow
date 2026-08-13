@@ -1,4 +1,4 @@
-"""Rich live views for Skill and Flow execution."""
+"""Rich live views for Playbook and Flow execution."""
 
 import json
 import time
@@ -22,7 +22,7 @@ STATUS_MARKS = {
 
 
 class SkillLiveView:
-    """Render one Skill call while the model is working."""
+    """Render one Playbook call while the model is working."""
 
     def __init__(self, skill_name: str):
         self.skill_name = skill_name
@@ -48,12 +48,12 @@ class SkillLiveView:
         else:
             body = Text(f"失败 · {elapsed:.1f}s", style="red")
             border = "red"
-        return Panel(body, title=f"Skill · {self.skill_name}", border_style=border)
+        return Panel(body, title=f"Playbook · {self.skill_name}", border_style=border)
 
 
 @contextmanager
 def live_skill(skill_name: str):
-    """Show a live Skill panel for the duration of one model call."""
+    """Show a live Playbook panel for the duration of one model call."""
     view = SkillLiveView(skill_name)
     with Live(view, refresh_per_second=4, transient=False):
         try:
@@ -87,7 +87,7 @@ class FlowRunView:
 
         table = Table(show_header=True, header_style="bold cyan", expand=True)
         table.add_column("步骤")
-        table.add_column("Skill")
+        table.add_column("Playbook")
         table.add_column("依赖")
         table.add_column("状态", width=14)
         table.add_column("耗时", justify="right")

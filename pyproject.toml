@@ -6,14 +6,14 @@ build-backend = "hatchling.build"
 name = "soloflow"
 # 版本单一来源: soloflow/__init__.py 的 __version__（hatch 动态读取）
 dynamic = ["version"]
-description = "文件驱动的 AI Skill 工具 —— 保存工作方法，按步骤自动执行"
+description = "文件驱动的 AI 工作手册工具 —— 保存工作方法，按步骤自动执行"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.12"
 authors = [
     {name = "SoloFlow Contributors"}
 ]
-keywords = ["ai", "llm", "skill", "prompt-engineering", "cli", "multi-agent"]
+keywords = ["ai", "llm", "playbook", "skill", "prompt-engineering", "cli", "multi-agent"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",

@@ -427,3 +427,11 @@ def test_list_agents_dedup_priority(monkeypatch, tmp_path):
     dup = [a for a in agents if a["name"] == "dup-agent"]
     assert len(dup) == 1, "同名 Agent 必须去重"
     assert "agents dir" in dup[0]["description"], "应保留优先级最高（agents/）的版本"
+
+
+def test_agent_accepts_playbooks_key():
+    """Agent 新格式使用 playbooks 字段时，内部仍归一化为 skills。"""
+    from soloflow.models.agent import AgentDefinition
+
+    agent = AgentDefinition(name="playbook-agent", playbooks=["content-writer"])
+    assert agent.skills == ["content-writer"]
