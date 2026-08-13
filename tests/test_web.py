@@ -1,5 +1,6 @@
 """本地网页 P0 入口测试。"""
 
+import base64
 import json
 import threading
 from urllib.error import HTTPError
@@ -108,6 +109,17 @@ def test_assistant_store_creates_versions_and_runs_locally(tmp_path, monkeypatch
     assert updated.current_version == "1.1.0"
     assert len(updated.versions) == 2
 
+    package = store.export_package(record.id).model_dump(mode="json")
+    assert package["kind"] == "soloflow-assistant"
+    assert "id" not in package
+    imported = store.import_package(package)
+    assert imported.id != record.id
+    assert imported.current.name == "周报整理"
+    assert imported.current_version == "1.1.0"
+
+    store.delete_assistant_history(record.id)
+    assert not (tmp_path / ".soloflow/runs" / run.id).exists()
+
 
 def test_web_draft_requires_privacy_confirmation(tmp_path):
     server = create_server(tmp_path, port=0)
@@ -215,6 +227,59 @@ def test_web_trial_returns_privacy_review_and_downloadable_artifacts(tmp_path, m
         ) as response:
             assert response.status == 200
             assert response.read()
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=2)
+        server.server_close()
+
+
+def test_web_exports_and_imports_personal_copy_and_deletes_run(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "soloflow.assistant_store.execute_prompt",
+        lambda *args, **kwargs: LLMResult(content="# 结果\n已完成"),
+    )
+    server = create_server(tmp_path, port=0)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    def request(path, value=None, method="POST"):
+        data = json.dumps(value).encode() if value is not None else None
+        return urlopen(
+            Request(
+                base_url + path,
+                data=data,
+                headers={"Content-Type": "application/json"} if data else {},
+                method=method,
+            )
+        )
+
+    try:
+        with request(
+            "/api/assistants", {"definition": {"name": "可分享助手", "goal": "整理工作"}}
+        ) as response:
+            assistant = json.loads(response.read())
+
+        with urlopen(f"{base_url}/api/assistants/{assistant['id']}/export") as response:
+            package = json.loads(response.read())
+            assert response.status == 200
+            assert "attachment" in response.headers["Content-Disposition"]
+            assert package["kind"] == "soloflow-assistant"
+            assert "id" not in package
+
+        encoded = base64.b64encode(json.dumps(package).encode()).decode()
+        with request("/api/assistants/import", {"package_base64": encoded}) as response:
+            imported = json.loads(response.read())
+        assert imported["id"] != assistant["id"]
+
+        with request(
+            f"/api/assistants/{assistant['id']}/trial",
+            {"input_text": "本周完成整理", "model": "deepseek-chat", "privacy_confirmed": True},
+        ) as response:
+            run = json.loads(response.read())
+        with request(f"/api/runs/{run['id']}", {}, method="DELETE") as response:
+            assert json.loads(response.read())["deleted"] is True
+        assert not (tmp_path / ".soloflow/runs" / run["id"]).exists()
     finally:
         server.shutdown()
         server_thread.join(timeout=2)

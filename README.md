@@ -51,7 +51,9 @@ uvx soloflow web
 sf web
 ```
 
-浏览器打开后，可以查看示例工作助手、配置 DeepSeek API Key，并用自然语言创建工作助手。当前支持上传 Word、Excel、CSV、PDF、文本和普通图片，生成 Markdown、Word、Excel 或 PDF 结果并下载。
+浏览器打开后，可以配置 DeepSeek API Key，用自然语言创建工作助手，再用表单确认方法并反复使用。当前支持上传 Word、Excel、CSV、PDF、文本和普通图片，生成 Markdown、Word、Excel 或 PDF 结果并下载。
+
+工作助手也可以分享给同事：在“我的工作助手”中点击“导出”，会得到一个 `.sfassistant` 文件；同事在自己的 SoloFlow 网页中选择该文件并导入，就会创建一个新的个人副本。分享文件只包含工作方法和版本信息，不包含 API Key、原始材料、运行记录或结果文件。网页中还可以删除单次运行记录，或清空某个助手的全部本地历史。
 
 ### 1. 准备 DeepSeek API Key
 

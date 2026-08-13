@@ -9,6 +9,7 @@ P0 只提供本地网页骨架和基础设置。真正的工作助手运行流�
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import threading
@@ -140,6 +141,30 @@ class WebAppState:
         )
         return record.model_dump(mode="json")
 
+    def export_assistant(self, assistant_id: str) -> dict[str, Any]:
+        return self.assistants.export_package(assistant_id).model_dump(mode="json")
+
+    def import_assistant(self, payload: dict[str, Any]) -> dict[str, Any]:
+        encoded = str(payload.get("package_base64", "")).strip()
+        if not encoded:
+            raise ValueError("请先选择 .sfassistant 工作助手文件")
+        try:
+            raw = base64.b64decode(encoded, validate=True)
+            package = json.loads(raw.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("工作助手文件无法读取，请选择 SoloFlow 导出的文件") from exc
+        if not isinstance(package, dict):
+            raise ValueError("工作助手文件格式不正确")
+        return self.assistants.import_package(package).model_dump(mode="json")
+
+    def delete_run(self, run_id: str) -> dict[str, Any]:
+        self.assistants.delete_run(run_id)
+        return {"deleted": True, "run_id": run_id}
+
+    def delete_assistant_history(self, assistant_id: str) -> dict[str, Any]:
+        count = self.assistants.delete_assistant_history(assistant_id)
+        return {"deleted": True, "assistant_id": assistant_id, "count": count}
+
 
 HOME_PAGE = """<!doctype html>
 <html lang="zh-CN">
@@ -232,6 +257,9 @@ HOME_PAGE = """<!doctype html>
     </div>
     <div class="panel" style="margin-top: 24px">
       <h2>我的工作助手</h2>
+      <div class="field-row"><label for="assistant-import">导入共享工作助手</label><input id="assistant-import" type="file" accept=".sfassistant,.json"><div class="muted">导入后会创建一个新的个人副本；分享文件不包含 API Key、原始材料、运行记录和结果文件。</div></div>
+      <div class="actions"><button class="secondary" id="import-assistant-button">导入并创建个人副本</button></div>
+      <p id="assistant-message" class="muted"></p>
       <div id="assistant-list" class="muted">还没有保存的工作助手。</div>
       <div id="run-panel" class="hidden">
         <h3 id="run-title"></h3>
@@ -248,6 +276,7 @@ HOME_PAGE = """<!doctype html>
         <h3>结果预览</h3>
         <div id="run-output" class="output">运行后将在这里显示结果。</div>
         <div id="artifact-list" class="muted"></div>
+        <div class="actions"><button class="secondary hidden" id="delete-run-button">删除本次运行记录</button></div>
       </div>
     </div>
   </main>
@@ -270,6 +299,7 @@ HOME_PAGE = """<!doctype html>
     let currentDraft = null;
     let currentAssistant = null;
     let lastTemporaryRequest = '';
+    let lastRunId = '';
 
     function lines(value) {
       return value.split('\\\\n').map(item => item.trim()).filter(Boolean);
@@ -278,6 +308,10 @@ HOME_PAGE = """<!doctype html>
     function showMessage(target, text, error = false) {
       target.textContent = text;
       target.style.color = error ? '#b33636' : '';
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
     }
 
     async function loadSettings() {
@@ -295,8 +329,30 @@ HOME_PAGE = """<!doctype html>
       const assistants = await response.json();
       const container = document.querySelector('#assistant-list');
       if (!assistants.length) { container.textContent = '还没有保存的工作助手。'; return; }
-      container.innerHTML = assistants.map(item => `<div class="assistant-item"><div><strong>${item.current.name}</strong><div class="muted">${item.current.description || item.current.goal} · v${item.current_version}</div></div><button class="secondary" data-assistant-id="${item.id}">使用</button></div>`).join('');
-      container.querySelectorAll('[data-assistant-id]').forEach(button => button.addEventListener('click', () => selectAssistant(button.dataset.assistantId)));
+      container.innerHTML = assistants.map(item => `<div class="assistant-item"><div><strong>${escapeHtml(item.current.name)}</strong><div class="muted">${escapeHtml(item.current.description || item.current.goal)} · v${escapeHtml(item.current_version)}</div></div><div class="actions"><button class="secondary" data-use-assistant-id="${escapeHtml(item.id)}">使用</button><button class="secondary" data-export-assistant-id="${escapeHtml(item.id)}">导出</button><button class="secondary" data-history-assistant-id="${escapeHtml(item.id)}">清空历史</button></div></div>`).join('');
+      container.querySelectorAll('[data-use-assistant-id]').forEach(button => button.addEventListener('click', () => selectAssistant(button.dataset.useAssistantId)));
+      container.querySelectorAll('[data-export-assistant-id]').forEach(button => button.addEventListener('click', () => downloadAssistant(button.dataset.exportAssistantId)));
+      container.querySelectorAll('[data-history-assistant-id]').forEach(button => button.addEventListener('click', () => deleteAssistantHistory(button.dataset.historyAssistantId)));
+    }
+
+    async function downloadAssistant(id) {
+      const response = await fetch(`/api/assistants/${id}/export`);
+      if (!response.ok) { showMessage(document.querySelector('#assistant-message'), '导出失败，请稍后重试。', true); return; }
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'soloflow-assistant.sfassistant';
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showMessage(document.querySelector('#assistant-message'), '工作助手文件已下载，可以发给同事。');
+    }
+
+    async function deleteAssistantHistory(id) {
+      if (!window.confirm('确定删除这个工作助手的全部本地运行记录和生成文件吗？此操作不可恢复。')) return;
+      const response = await fetch(`/api/assistants/${id}/history`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) { showMessage(document.querySelector('#assistant-message'), data.error || '删除历史失败', true); return; }
+      showMessage(document.querySelector('#assistant-message'), `已删除 ${data.count || 0} 条本地运行记录及其文件。`);
     }
 
     async function selectAssistant(id) {
@@ -307,6 +363,9 @@ HOME_PAGE = """<!doctype html>
       document.querySelector('#run-version').textContent = `当前版本：v${currentAssistant.current_version} · ${currentAssistant.current.description || currentAssistant.current.goal}`;
       document.querySelector('#run-model').value = currentAssistant.current.default_model;
       document.querySelector('#run-output').textContent = '运行后将在这里显示结果。';
+      document.querySelector('#artifact-list').textContent = '';
+      document.querySelector('#delete-run-button').classList.add('hidden');
+      lastRunId = '';
       document.querySelector('#save-version-button').disabled = true;
       document.querySelector('#run-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -396,6 +455,26 @@ HOME_PAGE = """<!doctype html>
       });
     }
 
+    document.querySelector('#import-assistant-button').addEventListener('click', async () => {
+      const input = document.querySelector('#assistant-import');
+      const message = document.querySelector('#assistant-message');
+      const file = input.files[0];
+      if (!file) { showMessage(message, '请先选择 .sfassistant 工作助手文件。', true); return; }
+      showMessage(message, '正在导入工作助手…');
+      try {
+        const payload = await readFilePayload(file);
+        const response = await fetch('/api/assistants/import', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ package_base64: payload.content_base64 }) });
+        const data = await response.json();
+        if (!response.ok) { showMessage(message, data.error || '导入失败', true); return; }
+        input.value = '';
+        showMessage(message, '已导入为新的个人副本。');
+        await loadAssistants();
+        await selectAssistant(data.id);
+      } catch (error) {
+        showMessage(message, error.message || '导入失败', true);
+      }
+    });
+
     async function selectedFilePayloads() {
       return await Promise.all(Array.from(document.querySelector('#run-files').files || []).map(readFilePayload));
     }
@@ -422,17 +501,19 @@ HOME_PAGE = """<!doctype html>
       if (!response.ok) {
         if (data.code === 'privacy_review') {
           document.querySelector('#privacy-review').classList.remove('hidden');
-          document.querySelector('#privacy-findings').innerHTML = `<p>${data.error}</p><ul>${(data.findings || []).map(item => `<li>${item.label}（${item.masked_sample}）：${item.suggestion}</li>`).join('')}</ul>`;
+          document.querySelector('#privacy-findings').innerHTML = `<p>${escapeHtml(data.error)}</p><ul>${(data.findings || []).map(item => `<li>${escapeHtml(item.label)}（${escapeHtml(item.masked_sample)}）：${escapeHtml(item.suggestion)}</li>`).join('')}</ul>`;
         }
         showMessage(message, data.error || '运行失败', true);
         return;
       }
       document.querySelector('#privacy-review').classList.add('hidden');
       lastTemporaryRequest = temporary.trim();
+      lastRunId = data.id;
       document.querySelector('#run-output').textContent = data.output || '模型没有返回内容。';
       document.querySelector('#save-version-button').disabled = !lastTemporaryRequest;
       const artifactList = document.querySelector('#artifact-list');
-      artifactList.innerHTML = `<p>结果文件：</p><ul>${(data.artifacts || []).map(item => `<li><a href="/api/runs/${data.id}/artifacts/${encodeURIComponent(item.name)}" download>${item.name}</a></li>`).join('')}</ul>`;
+      artifactList.innerHTML = `<p>结果文件：</p><ul>${(data.artifacts || []).map(item => `<li><a href="/api/runs/${data.id}/artifacts/${encodeURIComponent(item.name)}" download>${escapeHtml(item.name)}</a></li>`).join('')}</ul>`;
+      document.querySelector('#delete-run-button').classList.remove('hidden');
       showMessage(message, `本次任务已完成，运行记录已保存在本机（${data.id}）。`);
     }
 
@@ -441,6 +522,18 @@ HOME_PAGE = """<!doctype html>
     document.querySelector('#manual-review-button').addEventListener('click', () => {
       document.querySelector('#privacy-review').classList.add('hidden');
       showMessage(document.querySelector('#run-message'), '请手动修改内容或文件后重新上传，再次点击运行。');
+    });
+    document.querySelector('#delete-run-button').addEventListener('click', async () => {
+      const message = document.querySelector('#run-message');
+      if (!lastRunId || !window.confirm('确定删除本次运行记录和生成文件吗？此操作不可恢复。')) return;
+      const response = await fetch(`/api/runs/${lastRunId}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) { showMessage(message, data.error || '删除失败', true); return; }
+      document.querySelector('#run-output').textContent = '本次运行记录已删除。';
+      document.querySelector('#artifact-list').textContent = '';
+      document.querySelector('#delete-run-button').classList.add('hidden');
+      lastRunId = '';
+      showMessage(message, '本次运行记录和生成文件已从本机删除。');
     });
     document.querySelector('#save-version-button').addEventListener('click', async () => {
       if (!currentAssistant || !lastTemporaryRequest) return;
@@ -481,6 +574,19 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
         def _json_response(self, status: HTTPStatus, payload: Any) -> None:
             self._send(status, _json_bytes(payload), "application/json; charset=utf-8")
 
+        def _download(self, body: bytes, filename: str, content_type: str) -> None:
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header(
+                "Content-Disposition",
+                "attachment; filename=soloflow-download; "
+                f"filename*=UTF-8''{quote(filename)}",
+            )
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
         def _read_body(self) -> dict[str, Any]:
             length = int(self.headers.get("Content-Length", "0"))
             if length > 50 * 1024 * 1024:
@@ -505,7 +611,19 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
                     [item.model_dump(mode="json") for item in state.assistants.list()],
                 )
             elif path.startswith("/api/assistants/"):
-                assistant_id = path.removeprefix("/api/assistants/").strip("/")
+                parts = path.strip("/").split("/")
+                if len(parts) == 4 and parts[0:2] == ["api", "assistants"] and parts[3] == "export":
+                    try:
+                        package = state.export_assistant(parts[2])
+                    except FileNotFoundError as exc:
+                        self._json_response(HTTPStatus.NOT_FOUND, {"error": str(exc)})
+                        return
+                    self._download(_json_bytes(package), "soloflow-assistant.sfassistant", "application/json; charset=utf-8")
+                    return
+                if len(parts) != 3 or parts[0:2] != ["api", "assistants"]:
+                    self._json_response(HTTPStatus.NOT_FOUND, {"error": "接口不存在"})
+                    return
+                assistant_id = parts[2]
                 try:
                     self._json_response(
                         HTTPStatus.OK, state.assistants.get(assistant_id).model_dump(mode="json")
@@ -546,6 +664,8 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
                     result = state.save_settings(payload)
                 elif path == "/api/assistant-drafts":
                     result = state.draft_assistant(payload)
+                elif path == "/api/assistants/import":
+                    result = state.import_assistant(payload)
                 elif path == "/api/assistants":
                     result = state.create_assistant(payload)
                 elif path.startswith("/api/assistants/"):
@@ -585,6 +705,26 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
                 return
             except RuntimeError as exc:
                 self._json_response(HTTPStatus.BAD_GATEWAY, {"error": f"DeepSeek 请求失败：{exc}"})
+                return
+            self._json_response(HTTPStatus.OK, result)
+
+        def do_DELETE(self) -> None:  # noqa: N802
+            path = urlparse(self.path).path
+            try:
+                parts = path.strip("/").split("/")
+                if len(parts) == 3 and parts[0:2] == ["api", "runs"]:
+                    result = state.delete_run(parts[2])
+                elif (
+                    len(parts) == 4
+                    and parts[0:2] == ["api", "assistants"]
+                    and parts[3] == "history"
+                ):
+                    result = state.delete_assistant_history(parts[2])
+                else:
+                    self._json_response(HTTPStatus.NOT_FOUND, {"error": "接口不存在"})
+                    return
+            except (FileNotFoundError, OSError, ValueError) as exc:
+                self._json_response(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
             self._json_response(HTTPStatus.OK, result)
 

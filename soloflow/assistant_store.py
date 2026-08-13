@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -79,6 +80,17 @@ class AssistantRecord(BaseModel):
     versions: list[AssistantVersion] = Field(default_factory=list)
     created_at: str
     updated_at: str
+
+
+class AssistantPackage(BaseModel):
+    """可分享的工作助手文件，不包含本地运行数据。"""
+
+    kind: str = "soloflow-assistant"
+    schema_version: int = 1
+    exported_at: str
+    source_version: str
+    definition: AssistantDefinition
+    versions: list[AssistantVersion] = Field(default_factory=list)
 
 
 class RunRecord(BaseModel):
@@ -224,6 +236,47 @@ class AssistantStore:
         )
         return self._save(record)
 
+    def export_package(self, assistant_id: str) -> AssistantPackage:
+        """导出助手方法和版本历史，不导出运行记录、附件或本地配置。"""
+
+        record = self.get(assistant_id)
+        return AssistantPackage(
+            exported_at=_now(),
+            source_version=record.current_version,
+            definition=record.current,
+            versions=record.versions,
+        )
+
+    def import_package(self, payload: dict[str, Any]) -> AssistantRecord:
+        """从分享文件创建新的个人副本，始终生成新的本地 ID。"""
+
+        package = AssistantPackage.model_validate(payload)
+        if package.kind != "soloflow-assistant":
+            raise ValueError("不是 SoloFlow 工作助手文件")
+        if package.schema_version != 1:
+            raise ValueError(f"不支持的工作助手文件版本：{package.schema_version}")
+
+        timestamp = _now()
+        versions = list(package.versions)
+        if not any(item.version == package.source_version for item in versions):
+            versions.append(
+                AssistantVersion(
+                    version=package.source_version,
+                    definition=package.definition,
+                    change_note="从共享文件导入",
+                    created_at=timestamp,
+                )
+            )
+        record = AssistantRecord(
+            id=_assistant_id(package.definition.name),
+            current_version=package.source_version,
+            current=package.definition,
+            versions=versions,
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
+        return self._save(record)
+
     def create_version(
         self, assistant_id: str, definition: AssistantDefinition, change_note: str = ""
     ) -> AssistantRecord:
@@ -253,6 +306,35 @@ class AssistantStore:
         if run.output:
             (run_dir / "result.md").write_text(run.output, encoding="utf-8")
         return run
+
+    def delete_run(self, run_id: str) -> None:
+        """删除一次运行的本地记录、原始附件和生成文件。"""
+
+        runs_root = self.runs_dir.resolve()
+        run_dir = (self.runs_dir / run_id).resolve()
+        if run_dir.parent != runs_root or not run_dir.is_dir():
+            raise FileNotFoundError(f"找不到运行记录：{run_id}")
+        shutil.rmtree(run_dir)
+
+    def delete_assistant_history(self, assistant_id: str) -> int:
+        """删除指定助手的全部本地运行记录，返回删除数量。"""
+
+        self.get(assistant_id)
+        deleted = 0
+        if not self.runs_dir.is_dir():
+            return deleted
+        for run_dir in self.runs_dir.iterdir():
+            run_path = run_dir / "run.json"
+            if not run_dir.is_dir() or not run_path.is_file():
+                continue
+            try:
+                run = RunRecord.model_validate_json(run_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if run.assistant_id == assistant_id:
+                shutil.rmtree(run_dir)
+                deleted += 1
+        return deleted
 
     def run(
         self,

@@ -1,6 +1,6 @@
 # SoloFlow Project Status
 
-> Version: 2.0.0 | Stage: local web P2 file workflow implemented | Branch: `dev` | Released: 2026-08-10
+> Version: 2.0.0 | Stage: local web P3 sharing and history management implemented | Branch: `dev` | Released: 2026-08-10
 
 ## Current scope
 
@@ -13,12 +13,12 @@
 - 本地网页 P0 已接入：`sf web` 可启动本地网页，提供示例助手首页、DeepSeek API Key 配置和默认模型保存。
 - 本地网页 P1 已接入文字版核心闭环：自然语言生成助手草稿、表单确认、试运行、保存版本、手动运行和本地运行记录。
 - 本地网页 P2 已接入文件输入、敏感信息检查、建议脱敏、结果格式选择、单独下载和 ZIP 打包下载。
-- 工作助手导出、导入个人副本仍在后续 P3 实施。
+- 本地网页 P3 已接入工作助手 `.sfassistant` 导出、导入个人副本、单次运行删除和按助手清空历史。
 
 ## Verified locally
 
 - Windows 11、Python 3.12.13。
-- `182 passed`。
+- `189 passed`（核心测试 182 项，MCP stdio 端到端测试 7 项）。
 - Ruff check 通过，34 个 Python 文件 format check 通过。
 - wheel 与 sdist 构建通过。
 - GitHub Actions 的 Windows/Linux × Python 3.12/3.13 测试矩阵与 Ubuntu build/clean-wheel smoke 通过。
@@ -50,7 +50,7 @@
 
 - PDF 只支持可提取文本；扫描件和 OCR 暂不支持。
 - 图片输入需要用户选择带 `vl`、`vision` 或 `image` 标识的 DeepSeek 模型。
-- 工作助手导出、导入个人副本和更完整的历史管理尚未完成。
+- 尚未提供运行历史列表、按日期筛选和“清空全部项目数据”等更完整的历史管理功能。
 - Runner 不自动提供浏览器、搜索、文件系统或其他外部工具。
 - Flow 暂无 fallback model、持久化队列或分布式执行。
 
