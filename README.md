@@ -1,19 +1,19 @@
 # SoloFlow
 
 <p align="center">
-  <strong>让 AI 按照你认可的方法，完成写作、会议纪要、周报和代码审查等重复工作。</strong>
+  <strong>把你反复做的工作，变成一个可以重复使用的工作助手。</strong>
 </p>
 
 <p align="center">
-  SoloFlow 是一个在本地运行的 AI 工作工具。你描述任务，它按预先定义好的工作方法执行，<br>
-  返回可以继续修改、审核或交付的结果。
+  SoloFlow 面向不懂 AI、Agent 和 Vibe Coding 的普通公司员工。<br>
+  你只需要说清楚要做什么，或者直接上传手上的材料，SoloFlow 会帮你整理成固定的方法。
 </p>
 
 <p align="center">
-  <a href="#快速开始">快速开始</a> ·
-  <a href="#实际工作例子">实际工作例子</a> ·
-  <a href="#它是怎么工作的">它是怎么工作的</a> ·
-  <a href="#开发与文档">开发与文档</a>
+  <a href="#最快开始">最快开始</a> ·
+  <a href="#第一次怎么用">第一次怎么用</a> ·
+  <a href="#它能帮你做什么">它能帮你做什么</a> ·
+  <a href="#数据和隐私">数据和隐私</a>
 </p>
 
 [![CI](https://github.com/halexzd686-cloud/SoloFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/halexzd686-cloud/SoloFlow/actions/workflows/ci.yml)
@@ -21,205 +21,174 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-SoloFlow 不是一个让 AI 自由发挥的聊天窗口，而是把一套工作方法保存下来，之后反复使用。
-工具本身在本地运行，模型请求发送到 DeepSeek；重要结果仍然需要人工检查。
+## SoloFlow 是什么
+
+很多工作并不是每次都完全不同：周报、会议纪要、销售跟进、数据汇总、内容整理，通常都有相似的步骤和格式。
+
+SoloFlow 的作用是：
+
+1. 你用自己的话描述一项重复工作，或者上传一份现有文件。
+2. SoloFlow 把你的说法整理成一套工作方法，交给你检查和修改。
+3. 方法保存后，下次只要补充本次材料，就可以再次生成结果。
+
+它不是一个需要你学习复杂概念的聊天机器人，而是一个可以反复使用的本地工作台。
 
 ## 它能帮你做什么
 
-| 你想完成的工作 | SoloFlow 可以做什么 |
+| 工作场景 | 你可以让 SoloFlow 做什么 |
 | --- | --- |
-| 写产品介绍 | 按固定风格生成结构清晰的产品文案 |
-| 整理会议记录 | 提取结论、待办事项、负责人和截止时间 |
-| 写周报 | 根据工作记录生成结构化的团队周报 |
-| 审查代码 | 从规范、逻辑、安全和可维护性等方面检查代码 |
-| 生成发布说明 | 根据变更记录整理 Release Notes 和升级提示 |
-| 执行多步工作 | 依次完成分析、写作、审核和分发等步骤 |
+| 周报和月报 | 按“完成、未完成、问题、下一步”整理成固定格式 |
+| 会议纪要 | 提取结论、待办事项、负责人和截止时间 |
+| 销售跟进 | 把零散的客户记录整理成跟进汇报 |
+| 表格汇总 | 汇总多份 Excel 或 CSV，并标出关键数字和异常 |
+| 内容整理 | 把 Word、PDF 或文本材料整理成报告、简报或说明 |
+| 其他重复工作 | 根据你自己的流程，定制专属的工作助手 |
 
-## 快速开始
+你不需要先找到对应的模板。直接告诉它“我平时是怎么做的”，之后再逐步修改就可以。
 
-### 本地网页入口（当前开发中）
+## 最快开始
 
-如果你不想理解工作手册、Flow 或命令参数，可以先启动本地网页：
+### 你需要准备什么
+
+- Python 3.12 或更高版本
+- 一个 [DeepSeek API Key](https://platform.deepseek.com/)
+- Windows、macOS 或 Linux 电脑
+
+### 启动本地网页
+
+在终端复制运行：
 
 ```bash
+python -m pip install uv
 uvx soloflow web
 ```
 
-或在已经安装 SoloFlow 的环境中运行：
+然后打开：
+
+```text
+http://127.0.0.1:8765/
+```
+
+如果你已经把 SoloFlow 安装到当前 Python 环境，也可以运行：
 
 ```bash
 sf web
 ```
 
-浏览器打开后，可以配置 DeepSeek API Key，用自然语言创建工作助手，再用表单确认方法并反复使用。当前支持上传 Word、Excel、CSV、PDF、文本和普通图片，生成 Markdown、Word、Excel 或 PDF 结果并下载。
-
-工作助手也可以分享给同事：在“我的工作助手”中点击“导出”，会得到一个 `.sfassistant` 文件；同事在自己的 SoloFlow 网页中选择该文件并导入，就会创建一个新的个人副本。分享文件只包含工作方法和版本信息，不包含 API Key、原始材料、运行记录或结果文件。网页中还可以删除单次运行记录，或清空某个助手的全部本地历史。
-
-### 1. 准备 DeepSeek API Key
-
-需要 Python 3.12+ 和 [DeepSeek API Key](https://platform.deepseek.com/)。
-
-PowerShell：
-
-```powershell
-$env:DEEPSEEK_API_KEY = "你的密钥"
-```
-
-也可以在当前项目目录创建 `.env`：
-
-```dotenv
-DEEPSEEK_API_KEY=你的密钥
-```
-
-### 2. 运行第一个任务
-
-如果已经安装 SoloFlow：
+如果你是在项目源码目录中开发，可以运行：
 
 ```bash
-pip install soloflow
-sf run content-writer "为一款面向露营新手的便携灯写一篇产品介绍"
+uv run sf web
 ```
 
-不想安装到当前环境，也可以使用 `uvx`：
+### 配置 DeepSeek
 
-```bash
-uvx soloflow run content-writer "为一款面向露营新手的便携灯写一篇产品介绍"
-```
+打开网页右上角的“设置 DeepSeek”：
 
-### 3. 先预览，不产生模型费用
+1. 填入你的 DeepSeek API Key。
+2. 选择默认模型，首次使用可以保留推荐模型。
+3. 点击保存。
 
-```bash
-sf run content-writer "写一篇产品介绍" --dry-run
-```
+API Key 只保存在当前电脑的项目配置中，不会写入工作助手分享文件。
 
-`--dry-run` 只显示 SoloFlow 准备交给模型的任务内容，不会请求 DeepSeek。
+## 第一次怎么用
 
-### 4. 临时切换模型
+### 第一步：告诉 SoloFlow 你想重复什么工作
 
-只影响本次运行，不会修改工作手册：
-
-```bash
-sf run content-writer "写一篇产品介绍" --model deepseek-chat
-```
-
-当前支持 DeepSeek 官方接口下的 `deepseek-*` 模型；暂不接入其他模型供应商。
-
-## 实际工作例子
-
-### 写一篇产品介绍
-
-```bash
-sf run content-writer "为 TrailLight Mini 写一篇面向周末露营新手的产品介绍。已知：180 克、三档亮度、USB-C 充电。不得编造其他参数。"
-```
-
-### 审查一个代码变更
-
-把代码差异保存为 `diff.txt`，然后运行：
-
-```bash
-sf run code-reviewer --file diff.txt
-```
-
-SoloFlow 会按代码规范、逻辑正确性、安全性和可维护性整理审查意见。
-
-### 生成会议纪要
-
-把多个工作步骤连接起来，生成结论、待办和格式化纪要：
-
-```bash
-sf flow run meeting-notes -i meeting_title="产品周会" -i transcript="这里粘贴会议记录"
-```
-
-Flow 运行期间会显示每个步骤的进度，并在当前目录的 `.soloflow/runs/` 保存运行记录。
-
-## 它是怎么工作的
-
-你可以先把 SoloFlow 理解成三部分：
-
-- **工作手册**：告诉 AI 应该用什么方法完成一类任务，例如写作或代码审查。
-- **Flow**：把多个步骤连接起来，例如“分析 → 写作 → 审核”。
-- **人工确认**：在发布、发信或提交之前暂停，等待人确认后再继续。
-
-一个典型的工作流程是：
+在“我想让 SoloFlow 帮我……”输入框中，用平时说话的方式描述。例如：
 
 ```text
-你提供任务
-    ↓
-SoloFlow 按工作手册执行
-    ↓
-得到结果或进入下一步
-    ↓
-必要时等待人工确认
-    ↓
-完成最终交付
+我每周都要整理客户跟进记录，按照客户、当前进展、下一步行动和需要协助的问题，输出一份适合给领导看的销售跟进汇报，语气简洁，不要补充原文没有的信息。
 ```
 
-### 结构化结果和条件步骤
+如果你暂时不知道怎么描述，也可以点击“周报整理”“会议纪要”“表格汇总”或“销售跟进”开始修改示例。
 
-需要让后续步骤根据结果做判断时，可以让某个步骤返回 JSON，再使用条件表达式：
+你也可以点击“添加材料”，上传 Word、Excel、PDF 或文本文件，让 SoloFlow 根据材料内容帮你推荐一套工作方法。
 
-```yaml
-- id: review
-  playbook: code-reviewer
-  output_format: json
-  output_schema:
-    type: object
-    required: [approved]
-    properties:
-      approved: {type: boolean}
+### 第二步：检查并修改方法
 
-- id: approval
-  type: approval
-  depends_on: [review]
+点击“定制我的Work伙伴”后，SoloFlow 会先生成一份工作助手草稿。请检查：
 
-- id: publish
-  playbook: content-writer
-  depends_on: [approval]
-  when: $steps.approval.data.approved == true
+- 助手名称是否容易理解
+- 工作目标和步骤是否符合你的实际做法
+- 注意事项是否完整
+- 最终输出格式是否符合公司的要求
+
+确认无误后，再保存为自己的工作助手。以后不需要重新解释整套方法。
+
+### 第三步：补充本次材料并生成结果
+
+在“我的工作助手”中选择刚刚保存的助手：
+
+1. 填写这一次要处理的内容。
+2. 如有需要，上传本次的 Word、Excel、PDF、文本或普通图片。
+3. 选择本次使用的 DeepSeek 模型。
+4. 选择结果格式，例如 Markdown、Word、Excel 或 PDF。
+5. 检查隐私提示并确认发送。
+6. 生成结果后，单独下载文件，或下载 ZIP 压缩包。
+
+### 一个可以直接试用的例子
+
+第一次可以使用下面这段虚构内容，不需要上传真实业务文件：
+
+```text
+本周完成：整理三份客户资料，完成一次产品介绍培训。
+未完成：周报排版还没有完成。
+问题：暂无。
+下周计划：完成周报排版并复盘培训反馈。
 ```
 
-Flow 遇到人工确认节点会暂停。查看运行记录后，可以批准或拒绝：
+## 数据和隐私
 
-```bash
-sf flow runs
-sf flow approve <run-id> --step approval --note "已确认，可以发布"
-sf flow reject <run-id> --step approval --note "需要修改后再审"
-```
+SoloFlow 默认采用“本地保存、必要内容发送给模型”的方式：
 
-## 使用前知道
+- 工作助手、运行记录和生成文件保存在当前项目本机的 `.soloflow/` 目录。
+- 你输入的描述、上传的材料和本次运行内容，会发送给你选择的 DeepSeek 模型。
+- 每次定制或运行前，网页都会提示你检查内容是否敏感，由你决定是否发送。
+- API Key 只保存在本机，不会随工作助手导出给同事。
+- 导出的 `.sfassistant` 文件只包含工作方法和版本信息，不包含 API Key、原始材料、运行记录和生成文件。
+- 使用真实客户、财务、人事或内部资料前，请先确认公司的数据合规要求。
 
-- 真实请求需要 DeepSeek API Key，可能产生 API 费用。
-- 可以先使用 `--dry-run` 检查任务内容。
-- SoloFlow 不会自动联网搜索，也不会自动操作浏览器或修改本地文件。
-- 模型输出可能有错误，涉及事实、客户、发布和决策的内容需要人工复核。
-- Flow 的运行记录保存在当前目录的 `.soloflow/runs/`，不应将包含敏感信息的运行记录提交到 Git。
+真实请求可能产生 DeepSeek API 费用。建议第一次先使用虚构内容测试流程。
 
-Flow 还支持面向实际工作的控制：用 `output_format: json` 产出可判断的结果，用 `when` 控制后续步骤，用 `type: approval` 在发布、发信或提交前暂停等待人工确认。
+## 当前支持范围
 
-## 常用命令
+当前网页端支持：
 
-| 命令 | 用途 |
-| --- | --- |
-| `sf run <name> <task>` | 运行一个工作手册 |
-| `sf playbook list` | 查看可用工作手册 |
-| `sf playbook init <name>` | 创建工作手册 |
-| `sf playbook show <name>` | 查看工作手册 |
-| `sf playbook validate <path>` | 校验工作手册 |
-| `sf flow run <name> -i key=value` | 运行 Flow |
-| `sf flow runs` | 查看 Flow 运行记录 |
-| `sf flow watch <run-id>` | 重新查看 Flow 进度 |
-| `sf flow resume <run-id>` | 从失败处恢复 Flow |
-| `sf flow approve <run-id> --step <id>` | 批准人工审批节点并继续 |
-| `sf flow reject <run-id> --step <id>` | 拒绝人工审批节点 |
-| `sf agent run <name> <task>` | 用 Agent 执行任务 |
+- DeepSeek 最新可用的 v4 系列模型
+- Word、Excel、CSV、PDF、文本和普通图片
+- Markdown、Word、Excel、PDF 结果
+- 多个结果文件的单独下载和 ZIP 打包下载
+- 工作助手的本地保存、版本迭代、导出和导入
 
-如果从源码运行，把 `sf` 换成 `uv run sf`。
+当前暂不支持：
 
-已有项目无需迁移：旧的 `sf skill` 命令、`SKILL.md` 文件以及 Flow/Agent 中的旧字段仍然兼容。
+- 扫描件 OCR
+- 其他模型供应商
+- 自动搜索网页、调用浏览器或自动读取电脑中的其他文件
+- 账号、套餐和云端协作
 
-## 开发与文档
+## 常见问题
 
-从源码运行：
+### Workbuddy 或普通聊天工具也能写周报，为什么还要用 SoloFlow？
+
+Workbuddy 更适合临时提出一个问题并得到一次回答。SoloFlow 更适合把你认可的工作方法保存下来：下周只需要补充新材料，不需要重新解释格式、步骤和注意事项。
+
+### 我不懂 AI，可以使用吗？
+
+可以。你不需要会写 Prompt，也不需要理解 Agent、Skill 或 Flow。直接描述“我平时怎么做”，剩下的步骤由网页引导完成。
+
+### 可以把工作助手发给同事吗？
+
+可以。在“我的工作助手”中导出 `.sfassistant` 文件，同事导入后会得到新的个人副本。双方的 API Key、材料和运行记录不会一起分享。
+
+### 生成的结果可以直接交付吗？
+
+建议人工检查。SoloFlow 会按你确认的方法生成结果，但模型仍可能理解错误或遗漏信息，涉及客户、财务、发布和管理决策的内容尤其需要复核。
+
+## 进阶能力
+
+如果你是开发者，或希望把 SoloFlow 接入自己的自动化流程，可以继续使用命令行、工作手册、Agent、Flow 和 MCP 能力：
 
 ```bash
 uv sync
@@ -228,12 +197,12 @@ uv run pytest
 uv build
 ```
 
-- [TrailLight 完整案例](docs/tutorial.md)
-- [产品需求说明](docs/product-requirements.md)
-- [MVP 重构清单](docs/mvp-refactor-plan.md)
+相关文档：
+
+- [项目状态](STATUS.md)
 - [架构说明](docs/architecture.md)
 - [MCP 集成](docs/mcp.md)
-- [项目状态](STATUS.md)
+- [产品需求说明](docs/product-requirements.md)
 - [贡献指南](CONTRIBUTING.md)
 - [版本记录](CHANGELOG.md)
 
