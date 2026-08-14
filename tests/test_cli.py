@@ -62,7 +62,23 @@ def test_web_help_is_available():
 
     assert result.exit_code == 0
     assert "本地网页" in result.output
-    assert "--no-open" in result.output
+
+
+def test_web_no_open_disables_browser(monkeypatch):
+    captured = {}
+
+    def fake_serve(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr("soloflow.web.serve", fake_serve)
+    result = runner.invoke(app, ["web", "--no-open"])
+
+    assert result.exit_code == 0
+    assert captured == {
+        "host": "127.0.0.1",
+        "port": 8765,
+        "open_browser": False,
+    }
 
 
 def test_removed_nested_commands_are_absent():
