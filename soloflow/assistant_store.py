@@ -147,9 +147,7 @@ def draft_prompt(description: str, attachment_text: str = "") -> str:
         "用户没有提供文字描述，请根据附件内容判断这项重复工作的目标和处理方式。"
     )
     attachment_section = (
-        f"\n\n用户上传的材料内容：\n{attachment_text}"
-        if attachment_text.strip()
-        else ""
+        f"\n\n用户上传的材料内容：\n{attachment_text}" if attachment_text.strip() else ""
     )
     return f"""你正在帮助一个不懂 AI 的公司员工定义一个可重复使用的工作助手。
 

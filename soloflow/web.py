@@ -785,8 +785,7 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
             self.send_header("Content-Length", str(len(body)))
             self.send_header(
                 "Content-Disposition",
-                "attachment; filename=soloflow-download; "
-                f"filename*=UTF-8''{quote(filename)}",
+                f"attachment; filename=soloflow-download; filename*=UTF-8''{quote(filename)}",
             )
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
@@ -825,7 +824,11 @@ def create_server(project_dir: Path | None = None, host: str = "127.0.0.1", port
                     except FileNotFoundError as exc:
                         self._json_response(HTTPStatus.NOT_FOUND, {"error": str(exc)})
                         return
-                    self._download(_json_bytes(package), "soloflow-assistant.sfassistant", "application/json; charset=utf-8")
+                    self._download(
+                        _json_bytes(package),
+                        "soloflow-assistant.sfassistant",
+                        "application/json; charset=utf-8",
+                    )
                     return
                 if len(parts) != 3 or parts[0:2] != ["api", "assistants"]:
                     self._json_response(HTTPStatus.NOT_FOUND, {"error": "接口不存在"})

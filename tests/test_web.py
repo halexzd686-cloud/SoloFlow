@@ -34,7 +34,7 @@ def test_web_home_and_health(tmp_path):
             assert "先说清楚，再反复使用。" not in body
             assert "01 描述工作" not in body
             assert 'id="assistant-files"' in body
-            assert 'data-model-select' in body
+            assert "data-model-select" in body
 
         with urlopen(f"http://127.0.0.1:{server.server_port}/api/health") as response:
             assert json.loads(response.read()) == {"status": "ok", "service": "soloflow-web"}
