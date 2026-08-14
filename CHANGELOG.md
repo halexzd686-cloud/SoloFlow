@@ -4,6 +4,17 @@
 
 ## Unreleased
 
+暂无已归档的未发布变更。
+
+## 2.1.0 - 2026-08-14
+
+### Added
+
+- 新增面向普通用户的本地网页入口 `sf web`，支持用自然语言或上传材料定制工作助手。
+- 新增工作助手草稿确认、版本保存、重复运行、本地运行记录和助手导入导出。
+- 新增 Word、Excel、CSV、PDF、文本和普通图片输入，以及 Markdown、Word、Excel、PDF 结果和 ZIP 打包下载。
+- 新增每次运行前的隐私确认、DeepSeek API Key 设置和本次模型选择。
+
 ### Changed
 
 - 面向普通用户的名称改为 **Playbook（工作手册）**，新增 `sf playbook` 命令组。
@@ -18,6 +29,13 @@
 
 - Windows CLI 输出统一尝试使用 UTF-8，降低 GBK 终端下中文乱码概率。
 - 清理安全策略中关于已删除 Registry 的历史表述。
+- 修复不同操作系统下 Typer/Rich 帮助文本排版差异导致的 `--no-open` CI 误报。
+
+### Verification
+
+- 本地 192 项测试通过；Ruff check、format check 和 `uv build` 通过。
+- GitHub Actions 的 Windows/Linux × Python 3.12/3.13 测试矩阵和 Ubuntu build smoke 通过。
+- 真实 DeepSeek 请求验收通过；当前支持所有 `deepseek-*` 模型名，并继续锁定 DeepSeek 官方接口。
 
 ## 2.0.0 - 2026-08-10
 

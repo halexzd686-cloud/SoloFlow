@@ -1,8 +1,8 @@
 # SoloFlow Project Status
 
-> Version: 2.0.0 | Stage: local web P3 sharing and history management implemented | Branch: `main` | Released: 2026-08-10
+> Version: 2.1.0 | Stage: local web P3 sharing and history management implemented | Branch: `main` | Released: 2026-08-14
 
-> 当前 `main` 已包含 v2.0.0 发布后的本地网页、README、模型选择和 CI 修复等改动；这些改动尚未发布为新的正式版本。
+> v2.1.0 已包含本地网页工作助手、文件输入与交付、DeepSeek 模型选择、面向普通用户的 README 和跨平台 CI 修复。
 
 ## Current scope
 
@@ -58,4 +58,4 @@
 
 ## Release gate
 
-v2.0.0 已完成 `main` CI、GitHub Release、PyPI 发布和官方索引安装验收。当前 `main` 包含发布后的未发布改动；下一次正式发布前应更新版本号、CHANGELOG、GitHub Release 和 PyPI 包。
+v2.1.0 已完成 `main` CI、GitHub Release、PyPI 发布和官方索引安装验收。后续版本继续使用同一 tag 驱动门禁。
