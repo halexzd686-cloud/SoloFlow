@@ -142,27 +142,49 @@ def _json_object(text: str) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def draft_prompt(description: str) -> str:
+def draft_prompt(description: str, attachment_text: str = "") -> str:
+    description = description.strip() or (
+        "用户没有提供文字描述，请根据附件内容判断这项重复工作的目标和处理方式。"
+    )
+    attachment_section = (
+        f"\n\n用户上传的材料内容：\n{attachment_text}"
+        if attachment_text.strip()
+        else ""
+    )
     return f"""你正在帮助一个不懂 AI 的公司员工定义一个可重复使用的工作助手。
 
 用户对重复工作的描述：
-{description.strip()}
+{description}{attachment_section}
 
 请把描述整理成 JSON 对象，只输出 JSON，不要 Markdown 代码围栏。字段必须包含：
 name（简短名称）、description（用途说明）、goal（工作目标）、input_fields（输入字段数组）。
 每个输入字段包含 key、label、description、required；另外还要包含：
 steps（工作步骤数组）、output_format（建议输出格式）、rules（规则数组）、
-default_model（默认使用 deepseek-chat，除非用户明确指定其他 deepseek- 模型）。
+default_model（默认使用 deepseek-v4-flash，除非用户明确指定其他 deepseek- 模型）。
 不要添加用户没有提到的事实；信息不足时使用清晰、保守的通用表达。"""
 
 
-def draft_definition(description: str, model: str) -> AssistantDefinition:
-    """用 DeepSeek 将自然语言描述整理成助手草稿。"""
+def draft_definition(
+    description: str,
+    model: str,
+    attachments: list[FileAttachment] | None = None,
+) -> AssistantDefinition:
+    """用 DeepSeek 根据文字和附件整理成助手草稿。"""
 
-    if not description.strip():
-        raise ValueError("请先描述你想重复处理的工作")
+    attachments = attachments or []
+    if not description.strip() and not attachments:
+        raise ValueError("请先描述你想重复处理的工作，或上传一份材料")
+    attachment_prompt = attachment_content(attachments, model)
+    prompt = draft_prompt(
+        description, attachment_prompt if isinstance(attachment_prompt, str) else ""
+    )
+    model_content: str | list[dict[str, Any]]
+    if isinstance(attachment_prompt, str):
+        model_content = prompt
+    else:
+        model_content = [{"type": "text", "text": prompt}, *attachment_prompt]
     result = execute_prompt(
-        draft_prompt(description),
+        model_content,
         base_url=DEFAULT_BASE_URL,
         api_key_env=DEFAULT_API_KEY_ENV,
         model=model,

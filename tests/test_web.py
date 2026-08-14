@@ -7,6 +7,7 @@ from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+import httpx
 import pytest
 
 from soloflow.assistant_store import (
@@ -17,7 +18,7 @@ from soloflow.assistant_store import (
     PrivacyReviewError,
 )
 from soloflow.llm.client import LLMResult
-from soloflow.web import create_server
+from soloflow.web import WebAppState, create_server
 
 
 def test_web_home_and_health(tmp_path):
@@ -28,10 +29,15 @@ def test_web_home_and_health(tmp_path):
         with urlopen(f"http://127.0.0.1:{server.server_port}/") as response:
             body = response.read().decode("utf-8")
             assert response.status == 200
-            assert "把重复工作，变成自己的工作助手" in body
+            assert "把重复工作交给 SoloFlow" in body
+            assert 'id="assistant-files"' in body
+            assert 'data-model-select' in body
 
         with urlopen(f"http://127.0.0.1:{server.server_port}/api/health") as response:
             assert json.loads(response.read()) == {"status": "ok", "service": "soloflow-web"}
+
+        with urlopen(f"http://127.0.0.1:{server.server_port}/api/models") as response:
+            assert "deepseek-v4-flash" in json.loads(response.read())["models"]
     finally:
         server.shutdown()
         server_thread.join(timeout=2)
@@ -44,7 +50,7 @@ def test_web_settings_save_key_and_model(tmp_path, monkeypatch):
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
     try:
-        payload = json.dumps({"api_key": "test-key", "default_model": "deepseek-reasoner"}).encode()
+        payload = json.dumps({"api_key": "test-key", "default_model": "deepseek-v4-pro"}).encode()
         request = Request(
             f"http://127.0.0.1:{server.server_port}/api/settings",
             data=payload,
@@ -54,17 +60,52 @@ def test_web_settings_save_key_and_model(tmp_path, monkeypatch):
         with urlopen(request) as response:
             result = json.loads(response.read())
             assert response.status == 200
-            assert result == {"api_key_configured": True, "default_model": "deepseek-reasoner"}
+            assert result == {"api_key_configured": True, "default_model": "deepseek-v4-pro"}
 
         assert (tmp_path / ".env").read_text(encoding="utf-8") == "DEEPSEEK_API_KEY=test-key\n"
         settings = json.loads(
             (tmp_path / ".soloflow/config/settings.json").read_text(encoding="utf-8")
         )
-        assert settings == {"default_model": "deepseek-reasoner"}
+        assert settings == {"default_model": "deepseek-v4-pro"}
     finally:
         server.shutdown()
         server_thread.join(timeout=2)
         server.server_close()
+
+
+def test_draft_assistant_can_use_text_attachment(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "soloflow.assistant_store.execute_prompt",
+        lambda content, **kwargs: (
+            pytest.fail("附件内容没有传入草稿模型")
+            if "附件：工作说明.txt" not in str(content)
+            else LLMResult(
+                content=json.dumps(
+                    {
+                        "name": "工作说明整理",
+                        "description": "整理工作说明",
+                        "goal": "生成结构化结果",
+                        "input_fields": [],
+                        "steps": ["读取材料", "整理结果"],
+                        "output_format": "Markdown",
+                        "rules": [],
+                        "default_model": "deepseek-v4-flash",
+                    },
+                    ensure_ascii=False,
+                )
+            )
+        ),
+    )
+    content = base64.b64encode("请把这份材料整理成固定格式。".encode()).decode()
+    result = WebAppState(tmp_path).draft_assistant(
+        {
+            "description": "",
+            "attachments": [{"filename": "工作说明.txt", "content_base64": content}],
+            "model": "deepseek-v4-flash",
+            "privacy_confirmed": True,
+        }
+    )
+    assert result["name"] == "工作说明整理"
 
 
 def test_assistant_store_creates_versions_and_runs_locally(tmp_path, monkeypatch):
@@ -227,6 +268,49 @@ def test_web_trial_returns_privacy_review_and_downloadable_artifacts(tmp_path, m
         ) as response:
             assert response.status == 200
             assert response.read()
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=2)
+        server.server_close()
+
+
+def test_web_returns_clear_error_for_deepseek_auth_failure(tmp_path, monkeypatch):
+    def raise_auth_error(*args, **kwargs):
+        request = httpx.Request("POST", "https://api.deepseek.com/chat/completions")
+        response = httpx.Response(401, request=request)
+        raise httpx.HTTPStatusError(
+            "401 Authorization Required", request=request, response=response
+        )
+
+    monkeypatch.setattr("soloflow.assistant_store.execute_prompt", raise_auth_error)
+    server = create_server(tmp_path, port=0)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    def post(path, value):
+        request = Request(
+            base_url + path,
+            data=json.dumps(value).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        return urlopen(request)
+
+    try:
+        with post(
+            "/api/assistants", {"definition": {"name": "鉴权错误", "goal": "测试错误提示"}}
+        ) as response:
+            assistant = json.loads(response.read())
+        with pytest.raises(HTTPError) as error:
+            post(
+                f"/api/assistants/{assistant['id']}/trial",
+                {"input_text": "测试", "model": "deepseek-v4-flash", "privacy_confirmed": True},
+            )
+        assert error.value.code == 502
+        payload = json.loads(error.value.read())
+        assert payload["code"] == "deepseek_auth_error"
+        assert "API Key" in payload["error"]
     finally:
         server.shutdown()
         server_thread.join(timeout=2)
