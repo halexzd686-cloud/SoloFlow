@@ -51,7 +51,7 @@
 ## Known limitations
 
 - PDF 只支持可提取文本；扫描件和 OCR 暂不支持。
-- 图片输入需要用户选择带 `vl`、`vision` 或 `image` 标识的 DeepSeek 模型。
+- 图片直接上传暂未开放；当前 DeepSeek 官方 API 版本不提供可直接读取图片的视觉模型。
 - 尚未提供运行历史列表、按日期筛选和“清空全部项目数据”等更完整的历史管理功能。
 - Runner 不自动提供浏览器、搜索、文件系统或其他外部工具。
 - Flow 暂无 fallback model、持久化队列或分布式执行。

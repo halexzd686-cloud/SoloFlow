@@ -36,6 +36,7 @@ DEFAULT_MODEL = "deepseek-v4-flash"
 DEEPSEEK_MODEL_OPTIONS = ["deepseek-v4-flash", "deepseek-v4-pro"]
 LEGACY_MODEL_ALIASES = {"deepseek-chat", "deepseek-reasoner"}
 SETTINGS_RELATIVE_PATH = Path(".soloflow") / "config" / "settings.json"
+PUBLIC_INPUT_EXTENSIONS = frozenset({".docx", ".xlsx", ".csv", ".pdf", ".txt", ".md"})
 
 
 def _json_bytes(payload: Any) -> bytes:
@@ -139,15 +140,26 @@ class WebAppState:
         _write_json(self.settings_path, {"default_model": model})
         return self.settings()
 
+    @staticmethod
+    def _attachments_from_payload(payload: dict[str, Any]) -> list[FileAttachment]:
+        attachments: list[FileAttachment] = []
+        for item in payload.get("attachments", []):
+            if not isinstance(item, dict):
+                continue
+            filename = Path(str(item.get("filename", ""))).name
+            extension = Path(filename).suffix.lower()
+            if extension not in PUBLIC_INPUT_EXTENSIONS and extension in {".png", ".jpg", ".jpeg"}:
+                raise ValueError(
+                    "图片直接上传暂未开放；当前仅支持 Word、Excel、CSV、PDF 和文本文件"
+                )
+            attachments.append(FileAttachment.from_payload(item))
+        return attachments
+
     def draft_assistant(self, payload: dict[str, Any]) -> dict[str, Any]:
         if not payload.get("privacy_confirmed"):
             raise PrivacyConfirmationError("生成助手草稿前必须确认描述和附件会发送给 DeepSeek")
         model = str(payload.get("model") or self.settings()["default_model"]).strip()
-        attachments = [
-            FileAttachment.from_payload(item)
-            for item in payload.get("attachments", [])
-            if isinstance(item, dict)
-        ]
+        attachments = self._attachments_from_payload(payload)
         description = str(payload.get("description", ""))
         findings = scan_sensitive(description) + [
             finding for attachment in attachments for finding in attachment.findings
@@ -167,11 +179,7 @@ class WebAppState:
 
     def trial_assistant(self, assistant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         model = str(payload.get("model") or self.settings()["default_model"]).strip()
-        attachments = [
-            FileAttachment.from_payload(item)
-            for item in payload.get("attachments", [])
-            if isinstance(item, dict)
-        ]
+        attachments = self._attachments_from_payload(payload)
         run = self.assistants.run(
             assistant_id,
             str(payload.get("input_text", "")),
@@ -372,8 +380,8 @@ HOME_PAGE = """<!doctype html>
           <label class="upload-button" for="assistant-files"><span class="upload-icon" aria-hidden="true"></span>添加材料</label>
         </div>
       </div>
-      <input id="assistant-files" class="file-input" type="file" multiple accept=".docx,.xlsx,.csv,.pdf,.txt,.md,.png,.jpg,.jpeg">
-      <div class="muted">图片需要使用支持图片输入的 DeepSeek 模型；如果只有文件、没有文字描述，也可以直接上传。</div>
+      <input id="assistant-files" class="file-input" type="file" multiple accept=".docx,.xlsx,.csv,.pdf,.txt,.md">
+      <div class="muted">当前支持 Word、Excel、CSV、PDF 和文本文件；图片暂未开放。</div>
       <div class="template-grid">
         <button type="button" class="template-card" data-template-description="我每周要提交周报，包含本周完成、未完成、遇到的问题和下周计划，语气简洁，适合给领导看。"><h3>周报整理</h3><p>把一周的工作记录整理成固定格式。</p></button>
         <button type="button" class="template-card" data-template-description="我需要把会议记录整理成会议纪要，包含会议结论、待办事项、负责人和截止时间，不能补充原文没有的信息。"><h3>会议纪要</h3><p>提取结论、待办和负责人。</p></button>
@@ -420,7 +428,7 @@ HOME_PAGE = """<!doctype html>
       <div id="run-panel" class="run-panel hidden">
         <div class="section-heading"><div><h2 id="run-title"></h2><p id="run-version" class="muted"></p></div></div>
         <div class="field-row"><label for="run-input">第 3 步：填写本次要处理的内容</label><textarea id="run-input" placeholder="粘贴本周工作记录，或输入这次要整理的内容。"></textarea></div>
-        <div class="field-row"><label for="run-files">上传材料（可选，单个文件不超过 20 MB）</label><input id="run-files" type="file" multiple accept=".docx,.xlsx,.csv,.pdf,.txt,.md,.png,.jpg,.jpeg"><div id="file-hints" class="muted">支持 Word、Excel、CSV、PDF、文本和普通图片；扫描件与 OCR 暂不支持。</div></div>
+        <div class="field-row"><label for="run-files">上传材料（可选，单个文件不超过 20 MB）</label><input id="run-files" type="file" multiple accept=".docx,.xlsx,.csv,.pdf,.txt,.md"><div id="file-hints" class="muted">支持 Word、Excel、CSV、PDF 和文本文件；图片、扫描件与 OCR 暂未开放。</div></div>
         <div class="field-row"><label for="temporary-request">本次临时要求（可选，不会自动修改助手）</label><textarea id="temporary-request" placeholder="例如：这次把问题部分写得更适合给领导看。"></textarea></div>
         <div class="field-row"><label for="run-model">本次使用模型</label><select id="run-model" data-model-select><option value="deepseek-v4-flash">DeepSeek V4 Flash（推荐）</option><option value="deepseek-v4-pro">DeepSeek V4 Pro</option></select></div>
         <div class="field-row"><label>你希望下载哪些格式？</label><div id="output-formats" class="format-options"><label class="format-option"><input type="checkbox" name="output-format" value="md"> Markdown</label><label class="format-option"><input type="checkbox" name="output-format" value="docx"> Word</label><label class="format-option"><input type="checkbox" name="output-format" value="xlsx"> Excel</label><label class="format-option"><input type="checkbox" name="output-format" value="pdf"> PDF</label></div><div class="muted">可以选择多个格式；选择多个时还会提供 ZIP 打包下载。</div></div>

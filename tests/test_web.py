@@ -34,6 +34,8 @@ def test_web_home_and_health(tmp_path):
             assert "先说清楚，再反复使用。" not in body
             assert "01 描述工作" not in body
             assert 'id="assistant-files"' in body
+            assert ".png" not in body
+            assert "图片暂未开放" in body
             assert "data-model-select" in body
 
         with urlopen(f"http://127.0.0.1:{server.server_port}/api/health") as response:
@@ -109,6 +111,19 @@ def test_draft_assistant_can_use_text_attachment(tmp_path, monkeypatch):
         }
     )
     assert result["name"] == "工作说明整理"
+
+
+def test_web_rejects_image_attachment_until_vision_model_is_available(tmp_path):
+    content = base64.b64encode(b"png").decode()
+    with pytest.raises(ValueError, match="图片直接上传暂未开放"):
+        WebAppState(tmp_path).draft_assistant(
+            {
+                "description": "整理这张图片",
+                "attachments": [{"filename": "chart.png", "content_base64": content}],
+                "model": "deepseek-v4-flash",
+                "privacy_confirmed": True,
+            }
+        )
 
 
 def test_assistant_store_creates_versions_and_runs_locally(tmp_path, monkeypatch):
