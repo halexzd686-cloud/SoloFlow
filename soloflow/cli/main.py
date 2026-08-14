@@ -32,7 +32,10 @@ def web(
     port: int = typer.Option(8765, min=1, max=65535, help="本地网页端口"),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="启动后是否自动打开浏览器"),
 ):
-    """启动 SoloFlow 本地网页。"""
+    """启动 SoloFlow 本地网页。
+
+    默认会自动打开浏览器；如果只想启动服务，可以使用 --no-open。
+    """
     from soloflow.web import serve
 
     serve(host=host, port=port, open_browser=open_browser)
