@@ -224,110 +224,177 @@ HOME_PAGE = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SoloFlow 工作助手</title>
   <style>
-    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; --ink: #172033; --muted: #687386; --line: #dfe5ec; --paper: #fff; --canvas: #eef2f5; --navy: #172b4d; --blue: #2f6fda; --green: #18794e; --orange: #a95f13; }
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif; --ink: #2e3834; --muted: #75827d; --muted-2: #98a7a1; --line: #e1ebe6; --line-strong: #cedfd8; --paper: #fbfdfc; --paper-soft: #f5faf7; --canvas: #edf1ef; --mint: #9acfbc; --mint-deep: #5b9d85; --mint-soft: #e2f2ec; --mint-pale: #f0f8f4; --success: #6aaa8f; --warm: #cfb580; --danger: #a85e51; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--canvas); color: var(--ink); }
-    header { background: var(--navy); color: #fff; padding: 24px max(24px, calc((100% - 1120px) / 2)); }
-    main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 64px; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); -webkit-font-smoothing: antialiased; }
+    header { border-bottom: 1px solid var(--line); background: var(--canvas); padding: 0 max(28px, calc((100% - 1160px) / 2)); }
+    main { width: min(1160px, calc(100% - 56px)); margin: 0 auto; padding: 44px 0 84px; }
     h1, h2, h3, p { margin-top: 0; }
-    h1 { max-width: 720px; margin-bottom: 12px; font-size: clamp(32px, 5vw, 52px); line-height: 1.12; letter-spacing: -.03em; }
-    h2 { margin-bottom: 8px; font-size: 23px; letter-spacing: -.02em; }
-    h3 { margin-bottom: 8px; font-size: 18px; }
+    h1 { margin-bottom: 0; font-size: 20px; letter-spacing: -.04em; }
+    h2 { margin-bottom: 8px; font-size: 22px; letter-spacing: -.035em; }
+    h3 { margin-bottom: 7px; font-size: 15px; }
     p { line-height: 1.7; }
-    .eyebrow { color: #fff; font-size: 18px; font-weight: 700; letter-spacing: .01em; }
-    .intro { max-width: none; color: #d9e4f5; margin-bottom: 0; white-space: nowrap; }
-    .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 48px; }
-    .hero-start { max-width: 860px; padding: 24px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: 16px; }
-    .hero-start label { color: #fff; }
-    .hero-start textarea { min-height: 120px; background: #fff; border-color: transparent; }
-    .hero-start .muted { color: #b9c9e2; }
-    .main-section { margin-top: 28px; }
-    .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 16px; }
-    .process-rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-bottom: 28px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-    .process-step { padding: 14px 16px; background: var(--paper); }
-    .process-step strong { display: block; margin-bottom: 4px; font-size: 14px; }
-    .process-step span { color: var(--muted); font-size: 13px; }
-    .step-number { color: var(--blue); font-weight: 700; margin-right: 6px; }
-    .template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .template-card { min-height: 132px; padding: 16px; text-align: left; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: none; }
-    .template-card:hover, .template-card:focus-visible { border-color: var(--blue); box-shadow: 0 8px 20px rgba(47,111,218,.12); transform: translateY(-1px); }
-    .template-card h3 { margin-bottom: 6px; }
-    .template-card p { color: var(--muted); margin-bottom: 0; font-size: 13px; line-height: 1.55; }
-    .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 24px; box-shadow: 0 8px 24px rgba(33, 54, 79, .05); }
-    .setup-strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 1.2fr); align-items: center; gap: 22px; }
-    .setup-strip .notice { margin: 0; }
-    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
-    button { border: 0; border-radius: 9px; padding: 10px 15px; background: var(--blue); color: #fff; cursor: pointer; font-size: 14px; font-weight: 600; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
-    button:hover:not(:disabled), button:focus-visible { box-shadow: 0 5px 14px rgba(47,111,218,.22); transform: translateY(-1px); }
-    button.secondary { background: #e8eef7; color: #254d87; }
-    button.ghost { background: transparent; color: #d9e4f5; border: 1px solid rgba(255,255,255,.28); }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 20px; max-width: 1160px; margin: 0 auto; border-bottom: 1px solid var(--line); padding: 24px 0 20px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
+    .brand-mark { display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--mint); border-radius: 8px; color: var(--mint-deep); background: var(--mint-soft); }
+    .brand-mark::before { content: ""; width: 8px; height: 8px; border: 2px solid currentColor; border-radius: 50%; }
+    .eyebrow { color: var(--ink); font-size: 15px; font-weight: 750; letter-spacing: -.025em; }
+    .hero-copy, .intro { display: none; }
+    .hero-start { width: min(760px, 100%); margin: 68px auto 0; border: 1px solid var(--line-strong); border-radius: 16px; padding: 27px; background: var(--paper); box-shadow: 0 20px 55px rgba(56, 67, 47, .08); }
+    .hero-start::before { content: ""; display: block; height: 3px; margin: -28px 0 25px; border-radius: 0 0 4px 4px; background: var(--mint); }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+    .card-subtitle { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .field-label, .hero-start > label { display: block; margin: 0 0 8px; color: var(--ink); font-size: 12px; font-weight: 700; }
+    .description-box { overflow: hidden; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--paper-soft); transition: border-color .18s ease, box-shadow .18s ease; }
+    .description-box:focus-within { border-color: var(--mint-deep); box-shadow: 0 0 0 3px rgba(91, 157, 133, .13); }
+    .hero-start textarea { display: block; width: 100%; min-height: 116px; resize: vertical; border: 0; border-radius: 0; padding: 13px 14px 9px; outline: 0; color: var(--ink); background: transparent; font: inherit; font-size: 14px; line-height: 1.65; }
+    textarea::placeholder { color: var(--muted-2); }
+    .description-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding: 8px 11px 9px 14px; color: var(--muted-2); font-size: 11px; }
+    .upload-button { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 6px; padding: 5px 7px; color: var(--mint-deep); background: transparent; cursor: pointer; font-size: 11px; font-weight: 650; }
+    .upload-button:hover { background: var(--mint-pale); }
+    .upload-icon { width: 15px; height: 15px; border: 1.4px solid currentColor; border-radius: 4px; position: relative; }
+    .upload-icon::before { content: ""; position: absolute; left: 6px; top: 3px; width: 1.4px; height: 7px; background: currentColor; }
+    .upload-icon::after { content: ""; position: absolute; left: 3px; top: 6px; width: 7px; height: 1.4px; background: currentColor; }
+    #assistant-files { display: none; }
+    .hero-start .muted { margin-top: 8px; color: var(--muted-2); font-size: 11px; }
+    .template-grid { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 17px !important; }
+    .template-card { min-height: 0; border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; text-align: left; color: var(--muted); background: var(--paper); box-shadow: none; cursor: pointer; font-size: 11px; }
+    .template-card:hover, .template-card:focus-visible { border-color: #b9ded0; color: var(--mint-deep); background: var(--mint-pale); transform: none; }
+    .template-card h3 { margin: 0; font-size: 11px; font-weight: 600; }
+    .template-card p { display: none; }
+    .hero-start .field-row { margin: 18px 0 0; }
+    .hero-start .field-row label { margin: 0 0 8px; color: var(--ink); }
+    .hero-start .field-row select { margin-top: 0; }
+    .hero-start .field-row:has(select) { display: grid; grid-template-columns: 1fr; }
+    .hero-start .field-row:has(select) label { grid-column: 1; }
+    .consent { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; color: var(--muted); background: var(--paper-soft); font-size: 11px; line-height: 1.7; }
+    .consent span { flex: 1; }
+    .consent input, .format-option input { flex: 0 0 auto; width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--mint-deep); }
+    button { border: 0; border-radius: 9px; padding: 10px 15px; color: var(--paper); background: var(--mint-deep); cursor: pointer; font-size: 14px; font-weight: 650; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
+    button:hover:not(:disabled), button:focus-visible { box-shadow: 0 8px 18px rgba(91, 157, 133, .16); transform: translateY(-1px); }
+    button.secondary { color: var(--mint-deep); background: var(--mint-pale); border: 1px solid var(--line-strong); }
+    button.ghost { border: 1px solid var(--line-strong); border-radius: 8px; padding: 9px 12px; color: var(--mint-deep); background: rgba(255,255,255,.4); }
     button:disabled { opacity: .55; cursor: not-allowed; }
-    .status { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; background: #eaf0ff; color: #3156a3; padding: 8px 12px; font-size: 13px; }
-    .status.ok { background: #e5f5ec; color: var(--green); }
-    .notice { padding: 14px 16px; border-left: 4px solid #e0a62d; background: #fff7e8; color: #795116; }
-    .consent { display: flex; align-items: flex-start; gap: 8px; color: var(--muted); font-size: 14px; font-weight: 500; }
-    .consent input, .format-option input { width: auto; margin-top: 3px; }
-    dialog { width: min(520px, calc(100% - 48px)); border: 0; border-radius: 14px; padding: 0; box-shadow: 0 18px 70px rgba(0,0,0,.25); }
-    dialog::backdrop { background: rgba(11, 20, 39, .48); }
-    form { padding: 24px; }
-    label { display: block; margin: 14px 0 6px; font-weight: 600; font-size: 14px; }
-    input, select { width: 100%; border: 1px solid #cbd4e3; border-radius: 8px; padding: 11px; background: #fff; color: var(--ink); font: inherit; font-size: 15px; }
-    textarea { width: 100%; min-height: 112px; resize: vertical; border: 1px solid #cbd4e3; border-radius: 8px; padding: 11px; background: #fff; color: var(--ink); font: inherit; line-height: 1.5; }
-    textarea:focus, input:focus, select:focus { outline: 3px solid rgba(47,111,218,.18); border-color: var(--blue); }
+    #draft-button { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 18px; border: 1px solid var(--mint-deep); padding: 12px 14px; color: var(--paper); background: var(--mint-deep); }
+    .hero-start .actions { display: block; margin-top: 0; }
+    .status { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 8px 12px; color: var(--muted); background: var(--mint-pale); font-size: 13px; }
+    .status.ok { color: var(--success); background: var(--mint-soft); }
+    .notice { border-left: 3px solid var(--mint); padding: 13px 15px; color: var(--muted); background: var(--mint-pale); font-size: 13px; line-height: 1.6; }
+    .main-section { margin-top: 28px; }
+    .process-rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 0 auto 30px; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: var(--paper); box-shadow: 0 8px 22px rgba(56, 67, 47, .035); }
+    .process-step { position: relative; min-height: 137px; padding: 21px 24px; background: var(--paper); }
+    .process-step + .process-step { border-left: 1px solid var(--line); }
+    .process-step:not(:last-child)::after { content: ""; position: absolute; top: 34px; right: -18px; z-index: 1; width: 34px; height: 1px; background: var(--line-strong); }
+    .process-step strong { display: block; margin: 16px 0 7px; font-size: 14px; }
+    .process-step > span:last-child { display: block; max-width: 220px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .step-number { display: inline-grid; place-items: center; width: 23px; height: 23px; margin: 0; border: 1px solid #bedfd3; border-radius: 50%; color: var(--mint-deep); background: var(--mint-pale); font-size: 10px; font-weight: 750; }
+    .panel { border: 1px solid var(--line); border-radius: 13px; padding: 24px; background: var(--paper); box-shadow: 0 8px 22px rgba(56, 67, 47, .035); }
+    .setup-strip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 1.1fr); align-items: center; gap: 22px; }
+    .setup-strip .notice { margin: 0; }
+    .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 16px; }
+    .section-heading h2 { margin-bottom: 6px; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    label { display: block; margin: 14px 0 6px; color: var(--ink); font-weight: 650; font-size: 13px; }
+    input, select { width: 100%; border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px; color: var(--ink); background: var(--paper); font: inherit; font-size: 14px; }
+    textarea { width: 100%; min-height: 112px; resize: vertical; border: 1px solid var(--line-strong); border-radius: 8px; padding: 11px; color: var(--ink); background: var(--paper); font: inherit; line-height: 1.5; }
+    textarea:focus, input:focus, select:focus { outline: 3px solid rgba(91, 157, 133, .13); border-color: var(--mint-deep); }
     .actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
-    .muted { color: var(--muted); font-size: 14px; }
+    .muted { color: var(--muted); font-size: 13px; }
     .field-row { margin: 14px 0; }
     .field-row label { margin-top: 0; }
-    .output { white-space: pre-wrap; background: #f7f9fc; border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-height: 100px; overflow-wrap: anywhere; }
-    .artifact-box { margin-top: 16px; padding: 16px; background: #f3f8f5; border: 1px solid #cfe8d9; border-radius: 10px; }
-    .artifact-box a { color: #176d47; font-weight: 600; }
-    .assistant-item { display: flex; justify-content: space-between; gap: 14px; align-items: center; border-top: 1px solid #e5eaf2; padding: 16px 0; }
+    #assistant-import + .muted { margin-top: 9px; line-height: 1.75; }
+    .output { min-height: 100px; overflow-wrap: anywhere; white-space: pre-wrap; border: 1px solid var(--line); border-radius: 10px; padding: 18px; background: var(--paper-soft); }
+    .artifact-box { margin-top: 16px; border: 1px solid #d2e8df; border-radius: 10px; padding: 16px; background: var(--mint-pale); }
+    .artifact-box a { color: var(--mint-deep); font-weight: 650; }
+    .assistant-item { display: flex; justify-content: space-between; gap: 14px; align-items: center; border-top: 1px solid var(--line); padding: 16px 0; }
     .assistant-item:first-child { border-top: 0; }
     .assistant-item .actions { margin-top: 0; }
     .format-options { display: flex; flex-wrap: wrap; gap: 10px; }
-    .file-input { padding: 10px; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.24); color: #fff; }
-    .file-input::file-selector-button { margin-right: 10px; padding: 7px 10px; border: 0; border-radius: 6px; background: #dce8fb; color: #244a83; cursor: pointer; }
-    .hero-start .field-row { margin-bottom: 12px; }
-    .format-option { display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 9px 12px; background: #f4f7fb; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font-weight: 500; }
+    .format-option { display: inline-flex; align-items: center; gap: 7px; margin: 0; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; color: var(--ink); background: var(--paper-soft); font-weight: 500; }
+    .file-input, #assistant-import, #run-files { padding: 10px 12px; background: var(--paper-soft); border-color: var(--line-strong); color: var(--ink); }
+    .file-input::file-selector-button, #assistant-import::file-selector-button, #run-files::file-selector-button { margin-right: 12px; border: 0; border-radius: 7px; padding: 8px 12px; color: var(--mint-deep); background: var(--mint-soft); cursor: pointer; }
+    #assistant-import, #run-files { min-height: 46px; }
     .empty-state { padding: 18px 0; color: var(--muted); }
+    dialog { width: min(520px, calc(100% - 44px)); border: 1px solid var(--line-strong); border-radius: 15px; padding: 0; background: var(--paper); box-shadow: 0 25px 65px rgba(56, 67, 47, .2); }
+    dialog::backdrop { background: rgba(48, 56, 52, .24); backdrop-filter: blur(5px); }
+    dialog form { padding: 24px; }
     .hidden { display: none; }
-    @media (max-width: 760px) { header { padding: 20px; } main { padding: 22px 16px 48px; } .header-bar, .section-heading, .setup-strip { display: block; } .header-bar { margin-bottom: 32px; } .header-bar button { margin-top: 18px; } .intro { white-space: normal; } .process-rail, .template-grid { grid-template-columns: 1fr 1fr; } .template-card { min-height: 0; } .assistant-item { display: block; } .assistant-item .actions { justify-content: flex-start; margin-top: 12px; } }
-    @media (max-width: 460px) { .process-rail, .template-grid { grid-template-columns: 1fr; } .hero-start, .panel { padding: 18px; } h1 { font-size: 34px; } }
+    @media (max-width: 760px) {
+      header { padding: 0 18px; }
+      main { width: calc(100% - 36px); padding: 28px 0 52px; }
+      .header-bar, .section-heading, .setup-strip { display: block; }
+      .header-bar button { margin-top: 16px; }
+      .hero-start { margin-top: 44px; padding: 18px; }
+      .hero-start::before { margin: -19px 0 18px; }
+      .card-head { display: block; }
+      .process-rail { grid-template-columns: 1fr; }
+      .process-step { min-height: 0; padding: 18px 20px 19px 56px; }
+      .process-step + .process-step { border-top: 1px solid var(--line); border-left: 0; }
+      .process-step:not(:last-child)::after { top: auto; right: auto; bottom: -1px; left: 56px; width: 32px; }
+      .process-step .step-number { position: absolute; top: 19px; left: 20px; }
+      .process-step strong { margin-top: 0; }
+      .process-step > span:last-child { max-width: none; }
+      .assistant-item { display: block; }
+      .assistant-item .actions { justify-content: flex-start; margin-top: 12px; }
+    }
+    @media (max-width: 460px) {
+      .process-rail { margin-bottom: 22px; }
+      .hero-start { border-radius: 13px; }
+      .hero-start .field-row { display: block; }
+      .setup-strip, .panel { padding: 18px; }
+      .section-heading { margin-bottom: 13px; }
+    }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
   </style>
 </head>
 <body>
   <header>
     <div class="header-bar">
-      <div class="eyebrow">SoloFlow 本地工作助手</div>
+      <a class="brand" href="/" aria-label="SoloFlow 首页">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="eyebrow">SoloFlow 本地工作助手</span>
+      </a>
       <button class="ghost" id="settings-button">设置 DeepSeek</button>
     </div>
-    <div class="hero-copy">
-      <p class="intro">把重复工作交给 SoloFlow，确认方法后就能反复使用。</p>
-    </div>
     <div class="hero-start">
+      <div class="card-head">
+        <div>
+          <h1>创建一个工作助手</h1>
+          <p class="card-subtitle">用平时说话的方式描述，或者直接上传手上的材料。</p>
+        </div>
+      </div>
       <label for="assistant-description">我想让 SoloFlow 帮我……</label>
-      <textarea id="assistant-description" placeholder="例如：我每周要提交周报，包含本周完成、未完成、遇到的问题和下周计划，语气简洁，适合给领导看。"></textarea>
-      <div class="field-row"><label for="assistant-files">也可以直接上传材料（可选）</label><input id="assistant-files" class="file-input" type="file" multiple accept=".docx,.xlsx,.csv,.pdf,.txt,.md,.png,.jpg,.jpeg"><div class="muted">Word、Excel、CSV、PDF 和文本可以直接读取；图片需要使用支持图片输入的 DeepSeek 模型。如果只有文件、没有文字描述，也可以直接上传。</div></div>
-      <div class="muted">不确定怎么描述？可以先从下面的工作开始。</div>
-      <div class="template-grid" style="margin-top: 12px">
+      <div class="description-box">
+        <textarea id="assistant-description" placeholder="例如：我每周要提交周报，包含本周完成、未完成、遇到的问题和下周计划，语气简洁，适合给领导看。"></textarea>
+        <div class="description-tools">
+          <span>支持 Word、Excel、PDF、文本</span>
+          <label class="upload-button" for="assistant-files"><span class="upload-icon" aria-hidden="true"></span>添加材料</label>
+        </div>
+      </div>
+      <input id="assistant-files" class="file-input" type="file" multiple accept=".docx,.xlsx,.csv,.pdf,.txt,.md,.png,.jpg,.jpeg">
+      <div class="muted">图片需要使用支持图片输入的 DeepSeek 模型；如果只有文件、没有文字描述，也可以直接上传。</div>
+      <div class="template-grid">
         <button type="button" class="template-card" data-template-description="我每周要提交周报，包含本周完成、未完成、遇到的问题和下周计划，语气简洁，适合给领导看。"><h3>周报整理</h3><p>把一周的工作记录整理成固定格式。</p></button>
         <button type="button" class="template-card" data-template-description="我需要把会议记录整理成会议纪要，包含会议结论、待办事项、负责人和截止时间，不能补充原文没有的信息。"><h3>会议纪要</h3><p>提取结论、待办和负责人。</p></button>
         <button type="button" class="template-card" data-template-description="我经常要把多份 Excel 或 CSV 数据汇总成一份适合汇报的结果，保留关键数字并标注异常。"><h3>表格汇总</h3><p>汇总多份数据并标出异常。</p></button>
         <button type="button" class="template-card" data-template-description="我每周要整理客户跟进记录，按照客户、当前进展、下一步行动和需要协助的问题输出销售跟进汇报。"><h3>销售跟进</h3><p>把零散记录变成跟进汇报。</p></button>
       </div>
-      <div class="field-row"><label for="draft-model">本次使用模型</label><select id="draft-model" data-model-select><option value="deepseek-v4-flash">DeepSeek V4 Flash（推荐）</option><option value="deepseek-v4-pro">DeepSeek V4 Pro</option></select></div>
-      <label class="consent"><input id="draft-privacy" type="checkbox"> <span>我知道描述和上传的材料会发送给 DeepSeek，可能产生 API 费用。</span></label>
-      <div class="actions"><button id="draft-button">生成工作助手</button></div>
+      <div class="field-row">
+        <label for="draft-model">本次使用模型</label>
+        <select id="draft-model" data-model-select><option value="deepseek-v4-flash">DeepSeek V4 Flash（推荐）</option><option value="deepseek-v4-pro">DeepSeek V4 Pro</option></select>
+      </div>
+      <label class="consent"><input id="draft-privacy" type="checkbox"> <span>我知道描述和上传的材料会发送给 DeepSeek。<strong>我已检查内容是否敏感。</strong></span></label>
+      <div class="actions"><button id="draft-button"><span>定制我的Work伙伴</span><span aria-hidden="true">→</span></button></div>
       <p id="draft-message" class="muted"></p>
       <div id="draft-privacy-review" class="notice hidden"><strong>发送前检查</strong><div id="draft-findings"></div><div class="actions"><button id="draft-redact-button">按建议脱敏并生成</button><button class="secondary" id="draft-manual-button">我修改后再上传</button></div></div>
     </div>
   </header>
   <main>
     <div class="process-rail" aria-label="使用流程">
-      <div class="process-step"><strong><span class="step-number">01</span>描述工作</strong><span>用平时说话的方式告诉 SoloFlow</span></div>
-      <div class="process-step"><strong><span class="step-number">02</span>确认方法</strong><span>检查并修改工作助手草稿</span></div>
-      <div class="process-step"><strong><span class="step-number">03</span>生成结果</strong><span>上传材料并下载交付文件</span></div>
+      <div class="process-step"><span class="step-number">1</span><strong>描述工作</strong><span>用平时说话的方式告诉 SoloFlow</span></div>
+      <div class="process-step"><span class="step-number">2</span><strong>确认方法</strong><span>检查并修改工作助手草稿</span></div>
+      <div class="process-step"><span class="step-number">3</span><strong>生成结果</strong><span>上传材料并下载交付文件</span></div>
     </div>
     <section class="panel setup-strip main-section">
       <div><h2>使用前确认</h2><p class="muted">SoloFlow 在本机保存助手、运行记录和生成文件；只有必要内容会发送给你选择的 DeepSeek 模型。</p><p id="key-status" class="status">正在检查 DeepSeek 配置…</p></div>

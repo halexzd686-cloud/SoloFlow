@@ -29,7 +29,10 @@ def test_web_home_and_health(tmp_path):
         with urlopen(f"http://127.0.0.1:{server.server_port}/") as response:
             body = response.read().decode("utf-8")
             assert response.status == 200
-            assert "把重复工作交给 SoloFlow" in body
+            assert "创建一个工作助手" in body
+            assert "定制我的Work伙伴" in body
+            assert "先说清楚，再反复使用。" not in body
+            assert "01 描述工作" not in body
             assert 'id="assistant-files"' in body
             assert 'data-model-select' in body
 
