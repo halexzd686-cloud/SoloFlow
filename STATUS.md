@@ -1,6 +1,8 @@
 # SoloFlow Project Status
 
-> Version: 2.0.0 | Stage: local web P3 sharing and history management implemented | Branch: `dev` | Released: 2026-08-10
+> Version: 2.0.0 | Stage: local web P3 sharing and history management implemented | Branch: `main` | Released: 2026-08-10
+
+> 当前 `main` 已包含 v2.0.0 发布后的本地网页、README、模型选择和 CI 修复等改动；这些改动尚未发布为新的正式版本。
 
 ## Current scope
 
@@ -18,20 +20,20 @@
 ## Verified locally
 
 - Windows 11、Python 3.12.13。
-- `189 passed`（核心测试 182 项，MCP stdio 端到端测试 7 项）。
-- Ruff check 通过，34 个 Python 文件 format check 通过。
+- `192 passed`（包含 MCP stdio 端到端测试）。
+- Ruff check 通过，当前受检 Python 文件 format check 通过。
 - wheel 与 sdist 构建通过。
 - GitHub Actions 的 Windows/Linux × Python 3.12/3.13 测试矩阵与 Ubuntu build/clean-wheel smoke 通过。
 - wheel 在新建隔离环境安装成功，共安装 24 个包；离开源码目录后可发现内置资产并执行 `sf run content-writer "测试主题" --dry-run`。
-- README 70 行；`sf --help` 顶层命令 7 个。
-- `soloflow/` Python 代码 3,476 行，无空包、无 `core → cli` 反向导入。
+- README 已更新为面向普通用户的本地网页使用说明；`sf --help` 当前提供 8 个顶层入口。
+- `soloflow/` 当前约 5,626 行，无空包、无 `core → cli` 反向导入。
 - 工作手册、Flow、Agent 共用项目 → 用户 → 内置的资产发现顺序；工作手册优先查找 `playbooks/PLAYBOOK.md`，同时兼容 `skills/SKILL.md`。
 - Prompt 与模型调用统一进入 Runner；生产代码只有 Runner 调用 `chat()`。
 - 非 DeepSeek 的 `base_url`、`api_key_env` 或 `model` 会在读取密钥和创建 HTTP 客户端前被拒绝。
 - `litellm` 与 `textual` 已从项目依赖和 `uv.lock` 移除。
 - v2.0.0 GitHub Release 与 PyPI OIDC Trusted Publishing 成功；wheel、sdist 在两端的 SHA256 一致。
 - 从 PyPI 官方索引隔离安装 `soloflow==2.0.0` 成功；源码目录外的版本、内置资产发现与 DeepSeek dry-run 验收通过。
-- 真实 DeepSeek 请求验收通过：短任务返回预期文本；CLI `--model deepseek-chat` 端到端调用成功。
+- 真实 DeepSeek 请求验收通过：短任务返回预期文本；CLI `--model` 端到端调用成功。
 
 ## Removed in v2
 
@@ -42,9 +44,9 @@
 - Skill 依赖版本小语言、Skill `depends_on` 与迭代元数据。
 - 空的 `storage/`、`utils/` 包。
 
-## Not part of v2.0.0 release verification
+## Post-release verification
 
-- v2.0.0 发布门禁使用无网络 mock 测试；本 dev 分支已额外完成一次真实 DeepSeek 请求验收。
+- v2.0.0 正式发布门禁使用无网络 mock 测试；发布后的 `main` 已额外完成真实 DeepSeek 请求验收，并通过 Windows/Linux × Python 3.12/3.13 CI 矩阵。
 
 ## Known limitations
 
@@ -56,4 +58,4 @@
 
 ## Release gate
 
-v2.0.0 已完成 `main` CI、GitHub Release、PyPI 发布和官方索引安装验收。后续版本继续使用同一 tag 驱动门禁。
+v2.0.0 已完成 `main` CI、GitHub Release、PyPI 发布和官方索引安装验收。当前 `main` 包含发布后的未发布改动；下一次正式发布前应更新版本号、CHANGELOG、GitHub Release 和 PyPI 包。
