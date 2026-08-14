@@ -37,6 +37,24 @@ SoloFlow 不是一个让 AI 自由发挥的聊天窗口，而是把一套工作�
 
 ## 快速开始
 
+### 本地网页入口（当前开发中）
+
+如果你不想理解工作手册、Flow 或命令参数，可以先启动本地网页：
+
+```bash
+uvx soloflow web
+```
+
+或在已经安装 SoloFlow 的环境中运行：
+
+```bash
+sf web
+```
+
+浏览器打开后，可以配置 DeepSeek API Key，用自然语言创建工作助手，再用表单确认方法并反复使用。当前支持上传 Word、Excel、CSV、PDF、文本和普通图片，生成 Markdown、Word、Excel 或 PDF 结果并下载。
+
+工作助手也可以分享给同事：在“我的工作助手”中点击“导出”，会得到一个 `.sfassistant` 文件；同事在自己的 SoloFlow 网页中选择该文件并导入，就会创建一个新的个人副本。分享文件只包含工作方法和版本信息，不包含 API Key、原始材料、运行记录或结果文件。网页中还可以删除单次运行记录，或清空某个助手的全部本地历史。
+
 ### 1. 准备 DeepSeek API Key
 
 需要 Python 3.12+ 和 [DeepSeek API Key](https://platform.deepseek.com/)。
@@ -176,6 +194,8 @@ sf flow reject <run-id> --step approval --note "需要修改后再审"
 - 模型输出可能有错误，涉及事实、客户、发布和决策的内容需要人工复核。
 - Flow 的运行记录保存在当前目录的 `.soloflow/runs/`，不应将包含敏感信息的运行记录提交到 Git。
 
+Flow 还支持面向实际工作的控制：用 `output_format: json` 产出可判断的结果，用 `when` 控制后续步骤，用 `type: approval` 在发布、发信或提交前暂停等待人工确认。
+
 ## 常用命令
 
 | 命令 | 用途 |
@@ -189,7 +209,9 @@ sf flow reject <run-id> --step approval --note "需要修改后再审"
 | `sf flow runs` | 查看 Flow 运行记录 |
 | `sf flow watch <run-id>` | 重新查看 Flow 进度 |
 | `sf flow resume <run-id>` | 从失败处恢复 Flow |
-| `sf agent run <name> <task>` | 使用固定角色执行任务 |
+| `sf flow approve <run-id> --step <id>` | 批准人工审批节点并继续 |
+| `sf flow reject <run-id> --step <id>` | 拒绝人工审批节点 |
+| `sf agent run <name> <task>` | 用 Agent 执行任务 |
 
 如果从源码运行，把 `sf` 换成 `uv run sf`。
 
@@ -207,6 +229,8 @@ uv build
 ```
 
 - [TrailLight 完整案例](docs/tutorial.md)
+- [产品需求说明](docs/product-requirements.md)
+- [MVP 重构清单](docs/mvp-refactor-plan.md)
 - [架构说明](docs/architecture.md)
 - [MCP 集成](docs/mcp.md)
 - [项目状态](STATUS.md)

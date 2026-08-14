@@ -4,6 +4,7 @@ import json
 import os
 import time
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
@@ -114,7 +115,7 @@ def _stream_result(
 
 
 def chat(
-    messages: list[dict[str, str]],
+    messages: list[dict[str, Any]],
     *,
     base_url: str = DEFAULT_BASE_URL,
     api_key_env: str = DEFAULT_API_KEY_ENV,
